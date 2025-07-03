@@ -44,6 +44,8 @@ A web application that generates hypnosis audio from text using XTTS-v2 text-to-
 
 ## Usage
 
+### Running Locally
+
 1. Start the Flask application:
    ```
    python app.py
@@ -59,6 +61,54 @@ A web application that generates hypnosis audio from text using XTTS-v2 text-to-
 4. Click "Generate Hypnosis Audio" and wait for the processing to complete.
 
 5. Once complete, you can preview and download the generated audio file.
+
+### Docker Deployment
+
+#### Running with Docker
+
+1. Build the Docker image:
+   ```
+   docker build -t hypno-ai .
+   ```
+
+2. Run the container:
+   ```
+   docker run -p 5000:5000 hypno-ai
+   ```
+
+3. Access the application at `http://localhost:5000`
+
+#### Running with Docker Compose
+
+1. Start the application using Docker Compose:
+   ```
+   docker-compose up -d
+   ```
+
+2. Access the application at `http://localhost:5000`
+
+3. Stop the application:
+   ```
+   docker-compose down
+   ```
+
+### GitHub Actions CI/CD
+
+This project includes a GitHub Actions workflow that automatically builds and publishes a Docker image to GitHub Container Registry (GHCR) when changes are pushed to the main branch.
+
+To use the published image:
+
+1. Pull the latest image:
+   ```
+   docker pull ghcr.io/yourusername/hypno-ai:latest
+   ```
+
+2. Run the container:
+   ```
+   docker run -p 5000:5000 ghcr.io/yourusername/hypno-ai:latest
+   ```
+
+Note: Replace `yourusername` with your actual GitHub username.
 
 ## Notes on XTTS-v2
 

@@ -1,3 +1,8 @@
+# Git
+.git
+.github
+.gitignore
+
 # Python
 __pycache__/
 *.py[cod]
@@ -31,15 +36,16 @@ ENV/
 *.swp
 *.swo
 
+# Docker
+.dockerignore
+Dockerfile
+docker-compose.yml
+docker-compose.override.yml
+
 # Generated files
-static/output/
+static/output/*
 static/voices/temp_*
 
 # OS specific
 .DS_Store
 Thumbs.db
-
-# Docker
-.docker/
-docker-compose.override.yml
-*.env

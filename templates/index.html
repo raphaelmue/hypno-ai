@@ -20,8 +20,9 @@
                             <div class="mb-3">
                                 <label for="text" class="form-label">Hypnosis Script</label>
                                 <textarea class="form-control" id="text" name="text" rows="6" placeholder="Enter your hypnosis script here..." required></textarea>
+                                <div class="form-text">You can add pauses by inserting [break] where you want a 2-second silence in the audio.</div>
                             </div>
-                            
+
                             <div class="mb-3">
                                 <label for="language" class="form-label">Language</label>
                                 <select class="form-select" id="language" name="language">
@@ -30,7 +31,7 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                            
+
                             <div class="mb-3">
                                 <label class="form-label">Voice Selection</label>
                                 <div class="form-check">
@@ -46,7 +47,7 @@
                                     </label>
                                 </div>
                             </div>
-                            
+
                             <div id="sample_voice_section" class="mb-3">
                                 <label for="sample_voice" class="form-label">Select Sample Voice</label>
                                 <select class="form-select" id="sample_voice" name="sample_voice">
@@ -55,31 +56,31 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                            
+
                             <div id="upload_voice_section" class="mb-3 d-none">
                                 <label for="voice_file" class="form-label">Upload Voice Reference (WAV, MP3, OGG)</label>
                                 <input class="form-control" type="file" id="voice_file" name="voice_file" accept=".wav,.mp3,.ogg">
                                 <div class="form-text">Upload a short audio clip (5-10 seconds) of the voice you want to mimic.</div>
                             </div>
-                            
+
                             <div class="d-grid gap-2">
                                 <button type="submit" class="btn btn-primary" id="generate-btn">Generate Hypnosis Audio</button>
                             </div>
                         </form>
-                        
+
                         <div id="status" class="alert alert-info mt-3 d-none">
                             <div class="d-flex align-items-center">
                                 <div class="spinner-border spinner-border-sm me-2" role="status"></div>
                                 <div>Generating your hypnosis audio... This may take a few minutes.</div>
                             </div>
                         </div>
-                        
+
                         <div id="result" class="mt-3 d-none">
                             <div class="alert alert-success">
                                 <h5>Your hypnosis audio is ready!</h5>
                                 <p>You can listen to it below or download it to your device.</p>
                             </div>
-                            
+
                             <div class="card">
                                 <div class="card-body">
                                     <h5 class="card-title">Preview</h5>
@@ -90,7 +91,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div id="error" class="alert alert-danger mt-3 d-none"></div>
                     </div>
                 </div>

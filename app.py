@@ -1,9 +1,11 @@
 import os
 import uuid
+import tempfile
 
 from TTS.api import TTS
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
+from pydub import AudioSegment
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = os.path.join('static', 'voices')
@@ -38,7 +40,7 @@ def allowed_file(filename):
 
 
 def generate_audio(text, language, voice_path):
-    """Generate audio using XTTS-v2"""
+    """Generate audio using XTTS-v2 with support for [break] markers"""
     # Initialize TTS with XTTS-v2
     tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
 
@@ -46,13 +48,59 @@ def generate_audio(text, language, voice_path):
     output_filename = f"{uuid.uuid4()}.wav"
     output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
-    # Generate speech
-    tts.tts_to_file(
-        text=text,
-        file_path=output_path,
-        speaker_wav=voice_path,
-        language=language
-    )
+    # Check if text contains [break] markers
+    if "[break]" in text:
+        # Split text by [break] markers
+        segments = text.split("[break]")
+
+        # Create a temporary directory for segment audio files
+        with tempfile.TemporaryDirectory() as temp_dir:
+            segment_files = []
+
+            # Generate audio for each segment
+            for i, segment in enumerate(segments):
+                segment = segment.strip()
+                if not segment:  # Skip empty segments
+                    continue
+
+                segment_path = os.path.join(temp_dir, f"segment_{i}.wav")
+                tts.tts_to_file(
+                    text=segment,
+                    file_path=segment_path,
+                    speaker_wav=voice_path,
+                    language=language
+                )
+                segment_files.append(segment_path)
+
+            # Combine audio segments with 2-second silence between them
+            if segment_files:
+                combined = AudioSegment.empty()
+                silence = AudioSegment.silent(duration=2000)  # 2 seconds of silence
+
+                for i, file_path in enumerate(segment_files):
+                    segment_audio = AudioSegment.from_wav(file_path)
+                    combined += segment_audio
+                    if i < len(segment_files) - 1:  # Don't add silence after the last segment
+                        combined += silence
+
+                # Export the combined audio
+                combined.export(output_path, format="wav")
+            else:
+                # Fallback if no valid segments were found
+                tts.tts_to_file(
+                    text="No valid text segments found",
+                    file_path=output_path,
+                    speaker_wav=voice_path,
+                    language=language
+                )
+    else:
+        # No breaks, generate speech normally
+        tts.tts_to_file(
+            text=text,
+            file_path=output_path,
+            speaker_wav=voice_path,
+            language=language
+        )
 
     return output_filename
 
@@ -127,4 +175,5 @@ def download(filename):
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # In production, bind to all interfaces and disable debug mode
+    app.run(host='0.0.0.0', port=5000, debug=False)

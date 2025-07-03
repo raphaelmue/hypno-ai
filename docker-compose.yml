@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  hypno-ai:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./static/voices:/app/static/voices
+      - ./static/output:/app/static/output
+    environment:
+      - FLASK_ENV=production
+    restart: unless-stopped
