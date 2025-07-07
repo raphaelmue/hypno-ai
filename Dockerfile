@@ -17,5 +17,8 @@ RUN mkdir -p app/static/voices app/static/output
 # Expose the port the app runs on
 EXPOSE 5000
 
-# Command to run the application
-CMD ["python", "run.py"]
+# Set required environment variables
+ENV COQUI_TOS_AGREED=1
+
+# Command to run the application with Gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "run:app"]
