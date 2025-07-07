@@ -2,7 +2,7 @@ import os
 
 # Flask app configuration
 UPLOAD_FOLDER = os.path.join('app', 'static', 'voices')
-OUTPUT_FOLDER = os.path.join('app', 'static', 'output')
+OUTPUT_FOLDER = os.path.join('static', 'output')
 ALLOWED_EXTENSIONS = {'wav', 'mp3', 'ogg'}
 MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max upload size
 

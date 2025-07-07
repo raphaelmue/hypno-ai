@@ -43,3 +43,5 @@ Thumbs.db
 .docker/
 docker-compose.override.yml
 *.env
+
+routines.json

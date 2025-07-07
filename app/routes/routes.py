@@ -117,7 +117,8 @@ def generate():
             'name': routine['name'],
             'filename': output_filename,
             'download_url': f'/download/{output_filename}',
-            'redirect_url': url_for('main.index') if redirect_to_list else url_for('main.edit_routine', routine_id=routine['id'])
+            'redirect_url': url_for('main.index') if redirect_to_list else url_for('main.edit_routine',
+                                                                                   routine_id=routine['id'])
         })
     except Exception as e:
         # Clean up temporary uploaded file if needed
@@ -129,9 +130,7 @@ def generate():
 @main_bp.route('/download/<filename>')
 def download(filename):
     """Handle the download of generated audio files"""
-    # Set as_attachment=True only for actual downloads, not for audio player
-    as_attachment = request.args.get('download', 'false') == 'true'
-    return send_from_directory(OUTPUT_FOLDER, filename, as_attachment=as_attachment)
+    return send_from_directory(OUTPUT_FOLDER, filename)
 
 
 @main_bp.route('/routines', methods=['GET'])
