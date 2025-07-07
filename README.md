@@ -74,7 +74,7 @@ A web application that generates hypnosis audio from text using XTTS-v2 text-to-
    docker build -t hypno-ai .
    ```
 
-2. Run the container:
+2. Run the container (it uses Gunicorn for production):
    ```
    docker run -p 5000:5000 hypno-ai
    ```
@@ -87,6 +87,8 @@ A web application that generates hypnosis audio from text using XTTS-v2 text-to-
    ```
    docker-compose up -d
    ```
+
+   The container runs the Flask app with Gunicorn.
 
 2. Access the application at `http://localhost:5000`
 

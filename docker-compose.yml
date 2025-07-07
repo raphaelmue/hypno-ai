@@ -10,4 +10,5 @@ services:
       - ./app/static/output:/app/app/static/output
     environment:
       - FLASK_ENV=production
+      - COQUI_TOS_AGREED=1
     restart: unless-stopped
