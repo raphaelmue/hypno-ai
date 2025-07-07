@@ -8,10 +8,12 @@ from app.config import UPLOAD_FOLDER, OUTPUT_FOLDER, LANGUAGES, SAMPLE_VOICES
 from app.utils import allowed_file
 from app.audio import generate_audio
 
+
 @main_bp.route('/')
 def index():
     """Render the main page of the application"""
     return render_template('index.html', languages=LANGUAGES, sample_voices=SAMPLE_VOICES)
+
 
 @main_bp.route('/generate', methods=['POST'])
 def generate():
@@ -71,6 +73,7 @@ def generate():
         if voice_type == 'upload' and os.path.exists(voice_path) and 'temp_' in os.path.basename(voice_path):
             os.remove(voice_path)
         return jsonify({'error': f'Error generating audio: {str(e)}'}), 500
+
 
 @main_bp.route('/download/<filename>')
 def download(filename):
