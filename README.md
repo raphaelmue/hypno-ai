@@ -5,6 +5,9 @@ A web application that generates hypnosis audio from text using XTTS-v2 text-to-
 ## Features
 
 - Generate hypnosis audio from text prompts
+- Name and save your hypnosis routines
+- View a list of all saved routines
+- Load and regenerate existing routines
 - Select from multiple languages
 - Use sample voices or upload your own reference voice
 - Download generated audio files

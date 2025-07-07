@@ -1,3 +1,3 @@
-from app.utils.utils import allowed_file
+from app.utils.utils import allowed_file, slugify
 
-__all__ = ['allowed_file']
+__all__ = ['allowed_file', 'slugify']

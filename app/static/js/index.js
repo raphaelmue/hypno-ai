@@ -1,0 +1,127 @@
+document.addEventListener('DOMContentLoaded', function() {
+    // Add event listeners to routine buttons
+    function addRoutineButtonListeners() {
+        // Regenerate routine buttons
+        document.querySelectorAll('.regenerate-routine').forEach(button => {
+            button.addEventListener('click', function() {
+                const routineId = this.getAttribute('data-routine-id');
+                regenerateRoutine(routineId);
+            });
+        });
+
+        // Delete routine buttons
+        document.querySelectorAll('.delete-routine').forEach(button => {
+            button.addEventListener('click', function() {
+                const routineId = this.getAttribute('data-routine-id');
+                deleteRoutine(routineId);
+            });
+        });
+    }
+
+    // Function to regenerate a routine
+    function regenerateRoutine(routineId) {
+        if (confirm('Are you sure you want to regenerate this routine? This will create a new audio file.')) {
+            // First load the routine
+            fetch(`/routines/${routineId}`)
+                .then(response => response.json())
+                .then(routine => {
+                    // Create a FormData object with the routine data
+                    const formData = new FormData();
+                    formData.append('routine_id', routineId);
+                    formData.append('name', routine.name);
+                    formData.append('text', routine.text);
+                    formData.append('language', routine.language);
+                    formData.append('voice_type', routine.voice_type);
+                    formData.append('redirect', 'true'); // Redirect to list page after regeneration
+
+                    if (routine.voice_type === 'sample') {
+                        formData.append('sample_voice', routine.voice_id);
+                    } else {
+                        // Can't regenerate with uploaded voice if we don't have the file
+                        alert('Cannot regenerate with uploaded voice. Please edit the routine and upload a new voice file.');
+                        return;
+                    }
+
+                    // Show loading indicator or disable button
+                    const button = document.querySelector(`.regenerate-routine[data-routine-id="${routineId}"]`);
+                    const originalText = button.textContent;
+                    button.disabled = true;
+                    button.textContent = 'Regenerating...';
+
+                    // Send the request to generate
+                    fetch('/generate', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        // Re-enable button
+                        button.disabled = false;
+                        button.textContent = originalText;
+
+                        if (data.error) {
+                            // Show error
+                            alert(`Error: ${data.error}`);
+                        } else {
+                            // Show success message and redirect to the appropriate page
+                            alert('Routine regenerated successfully!');
+                            if (data.redirect_url) {
+                                window.location.href = data.redirect_url;
+                            } else {
+                                window.location.reload();
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        // Re-enable button
+                        button.disabled = false;
+                        button.textContent = originalText;
+
+                        // Show error
+                        alert('An error occurred while communicating with the server. Please try again.');
+                        console.error('Error:', error);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading routine for regeneration:', error);
+                    alert('Error loading routine for regeneration. Please try again.');
+                });
+        }
+    }
+
+    // Function to delete a routine
+    function deleteRoutine(routineId) {
+        if (confirm('Are you sure you want to delete this routine? This cannot be undone.')) {
+            fetch(`/routines/${routineId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Remove the row from the table or refresh the page
+                    const row = document.querySelector(`tr[data-routine-id="${routineId}"]`);
+                    if (row) {
+                        row.remove();
+                    }
+
+                    // If no more routines, show the "no routines" message
+                    const routinesList = document.getElementById('routines-list');
+                    if (routinesList.children.length === 0) {
+                        const row = document.createElement('tr');
+                        row.innerHTML = '<td colspan="4" class="text-center">No saved routines yet. <a href="/routine/new">Create your first routine</a>.</td>';
+                        routinesList.appendChild(row);
+                    }
+                } else {
+                    alert(data.error || 'Error deleting routine. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting routine:', error);
+                alert('Error deleting routine. Please try again.');
+            });
+        }
+    }
+
+    // Initialize by adding event listeners to routine buttons
+    addRoutineButtonListeners();
+});

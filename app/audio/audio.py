@@ -4,14 +4,22 @@ import tempfile
 from TTS.api import TTS
 from pydub import AudioSegment
 from app.config import OUTPUT_FOLDER
+from app.utils import slugify
 
-def generate_audio(text, language, voice_path):
+def generate_audio(text, language, voice_path, routine_name=None):
     """Generate audio using XTTS-v2 with support for [break] markers and line breaks"""
     # Initialize TTS with XTTS-v2
     tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
 
-    # Generate a unique filename
-    output_filename = f"{uuid.uuid4()}.wav"
+    # Generate a filename based on the routine name or a UUID if no name is provided
+    if routine_name:
+        # Create a slug from the routine name
+        slug = slugify(routine_name)
+        output_filename = f"{slug}.wav"
+    else:
+        # Fallback to UUID if no name is provided
+        output_filename = f"{uuid.uuid4()}.wav"
+
     output_path = os.path.join(OUTPUT_FOLDER, output_filename)
 
     # Create a temporary directory for segment audio files
