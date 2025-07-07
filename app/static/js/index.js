@@ -18,6 +18,59 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Function to poll for task status
+    function pollTaskStatus(taskId, button, originalText) {
+        // Poll the server for task status
+        fetch(`/task/${taskId}?redirect=true`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    // Re-enable button
+                    button.disabled = false;
+                    button.textContent = originalText;
+
+                    // Show error
+                    alert(`Error: ${data.error}`);
+                } else if (data.status === "completed" && data.result) {
+                    // Re-enable button
+                    button.disabled = false;
+                    button.textContent = originalText;
+
+                    // Show success message and redirect to the appropriate page
+                    alert('Routine regenerated successfully!');
+                    if (data.result.redirect_url) {
+                        window.location.href = data.result.redirect_url;
+                    } else {
+                        window.location.reload();
+                    }
+                } else if (data.status === "failed") {
+                    // Re-enable button
+                    button.disabled = false;
+                    button.textContent = originalText;
+
+                    // Show error
+                    alert(data.error || "An error occurred while generating the audio. Please try again.");
+                } else {
+                    // Task is still processing, update button text with more details
+                    if (data.status === "processing") {
+                        button.textContent = "Processing...";
+                    }
+
+                    // Continue polling after a delay
+                    setTimeout(() => pollTaskStatus(taskId, button, originalText), 2000);
+                }
+            })
+            .catch(error => {
+                // Re-enable button
+                button.disabled = false;
+                button.textContent = originalText;
+
+                // Show error
+                alert('An error occurred while communicating with the server. Please try again.');
+                console.error('Error:', error);
+            });
+    }
+
     // Function to regenerate a routine
     function regenerateRoutine(routineId) {
         if (confirm('Are you sure you want to regenerate this routine? This will create a new audio file.')) {
@@ -46,30 +99,26 @@ document.addEventListener('DOMContentLoaded', function() {
                     const button = document.querySelector(`.regenerate-routine[data-routine-id="${routineId}"]`);
                     const originalText = button.textContent;
                     button.disabled = true;
-                    button.textContent = 'Regenerating...';
+                    button.textContent = 'Starting...';
 
-                    // Send the request to generate
+                    // Send the request to start the task
                     fetch('/generate', {
                         method: 'POST',
                         body: formData
                     })
                     .then(response => response.json())
                     .then(data => {
-                        // Re-enable button
-                        button.disabled = false;
-                        button.textContent = originalText;
-
                         if (data.error) {
+                            // Re-enable button
+                            button.disabled = false;
+                            button.textContent = originalText;
+
                             // Show error
                             alert(`Error: ${data.error}`);
-                        } else {
-                            // Show success message and redirect to the appropriate page
-                            alert('Routine regenerated successfully!');
-                            if (data.redirect_url) {
-                                window.location.href = data.redirect_url;
-                            } else {
-                                window.location.reload();
-                            }
+                        } else if (data.task_id) {
+                            // Start polling for task status
+                            button.textContent = 'Generating...';
+                            pollTaskStatus(data.task_id, button, originalText);
                         }
                     })
                     .catch(error => {

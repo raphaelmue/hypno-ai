@@ -18,7 +18,7 @@
                     <div class="card-body">
                         <form id="hypnosis-form">
                             <input type="hidden" id="routine_id" name="routine_id" value="{{ routine.id if routine else '' }}">
-                            
+
                             <div class="mb-3">
                                 <label for="name" class="form-label">Routine Name</label>
                                 <input type="text" class="form-control" id="name" name="name" placeholder="Enter a name for this routine" value="{{ routine.name if routine else '' }}">
@@ -77,9 +77,15 @@
                         </form>
 
                         <div id="status" class="alert alert-info mt-3 d-none">
-                            <div class="d-flex align-items-center">
+                            <div class="d-flex align-items-center mb-2">
                                 <div class="spinner-border spinner-border-sm me-2" role="status"></div>
                                 <div>Generating your hypnosis audio... This may take a few minutes.</div>
+                            </div>
+                            <div class="progress" style="height: 5px;">
+                                <div id="status-progress" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <div class="mt-2 small text-muted">
+                                <span id="status-details">Starting the generation process...</span>
                             </div>
                         </div>
 

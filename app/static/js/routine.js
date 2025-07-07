@@ -28,6 +28,142 @@ document.addEventListener("DOMContentLoaded", function () {
     const downloadLink = document.getElementById("download-link");
     const generateBtn = document.getElementById("generate-btn");
 
+    // Function to poll for task status
+    function pollTaskStatus(taskId, redirectToList = false, pollCount = 0) {
+        // Get UI elements for status updates
+        const statusMessage = statusDiv.querySelector("div.d-flex div:last-child");
+        const statusProgress = document.getElementById("status-progress");
+        const statusDetails = document.getElementById("status-details");
+
+        // Update progress based on poll count (simulated progress)
+        let progress = 0;
+        if (pollCount < 5) {
+            progress = 10 + (pollCount * 5); // 10-35%: Starting
+            statusDetails.textContent = "Starting the generation process...";
+        } else if (pollCount < 10) {
+            progress = 35 + ((pollCount - 5) * 5); // 35-60%: Processing text
+            statusDetails.textContent = "Processing text and generating speech segments...";
+        } else if (pollCount < 15) {
+            progress = 60 + ((pollCount - 10) * 5); // 60-85%: Combining audio
+            statusDetails.textContent = "Combining audio segments with pauses...";
+        } else {
+            progress = 85 + (Math.min(pollCount - 15, 3) * 5); // 85-100%: Finalizing
+            statusDetails.textContent = "Finalizing your audio file...";
+        }
+
+        // Update progress bar
+        if (statusProgress) {
+            statusProgress.style.width = `${progress}%`;
+        }
+
+        // Construct the URL with redirect parameter if needed
+        let url = `/task/${taskId}`;
+        if (redirectToList) {
+            url += "?redirect=true";
+        }
+
+        // Poll the server for task status
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    // Hide status
+                    statusDiv.classList.add("d-none");
+
+                    // Enable the generate button
+                    generateBtn.disabled = false;
+
+                    // Show error
+                    errorDiv.textContent = data.error;
+                    errorDiv.classList.remove("d-none");
+                } else if (data.status === "completed" && data.result) {
+                    // Set progress to 100% before hiding
+                    if (statusProgress) {
+                        statusProgress.style.width = "100%";
+                    }
+                    if (statusDetails) {
+                        statusDetails.textContent = "Audio generation complete!";
+                    }
+
+                    // Short delay to show the completed progress
+                    setTimeout(() => {
+                        // Hide status
+                        statusDiv.classList.add("d-none");
+
+                        // Enable the generate button
+                        generateBtn.disabled = false;
+
+                        // Show result
+                        audioPreview.src = data.result.download_url;
+                        downloadLink.href = data.result.download_url + "?download=true";
+                        resultDiv.classList.remove("d-none");
+
+                        // Scroll to result
+                        resultDiv.scrollIntoView({behavior: "smooth"});
+
+                        // Add a "Back to List" button to the result section
+                        const resultCard = document.querySelector("#result .card-body");
+                        if (resultCard && !document.getElementById("back-to-list-btn")) {
+                            const backBtn = document.createElement("a");
+                            backBtn.id = "back-to-list-btn";
+                            backBtn.href = data.result.redirect_url || "/";
+                            backBtn.className = "btn btn-secondary mt-3";
+                            backBtn.textContent = "Back to Routines List";
+                            resultCard.appendChild(backBtn);
+                        }
+
+                        // Update the form's routine_id field if this is a new routine
+                        const routineIdField = document.getElementById("routine_id");
+                        if (routineIdField && !routineIdField.value && data.result.routine_id) {
+                            routineIdField.value = data.result.routine_id;
+
+                            // Update the URL to reflect the routine ID
+                            if (history.pushState) {
+                                const newUrl = `/routine/${data.result.routine_id}`;
+                                window.history.pushState({path: newUrl}, "", newUrl);
+                            }
+                        }
+                    }, 500);
+                } else if (data.status === "failed") {
+                    // Hide status
+                    statusDiv.classList.add("d-none");
+
+                    // Enable the generate button
+                    generateBtn.disabled = false;
+
+                    // Show error
+                    errorDiv.textContent = data.error || "An error occurred while generating the audio. Please try again.";
+                    errorDiv.classList.remove("d-none");
+                } else {
+                    // Task is still processing, update status message with more details
+                    if (data.status === "processing") {
+                        if (statusMessage) {
+                            statusMessage.textContent = "Processing your audio... This may take a few minutes.";
+                        }
+                    } else if (data.status === "pending") {
+                        if (statusMessage) {
+                            statusMessage.textContent = "Waiting for processing to begin...";
+                        }
+                    }
+
+                    // Continue polling after a delay
+                    setTimeout(() => pollTaskStatus(taskId, redirectToList, pollCount + 1), 2000);
+                }
+            })
+            .catch(error => {
+                // Hide status
+                statusDiv.classList.add("d-none");
+
+                // Enable the generate button
+                generateBtn.disabled = false;
+
+                // Show error
+                errorDiv.textContent = "An error occurred while communicating with the server. Please try again.";
+                errorDiv.classList.remove("d-none");
+                console.error("Error:", error);
+            });
+    }
+
     form.addEventListener("submit", function (e) {
         e.preventDefault();
 
@@ -52,54 +188,27 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         }
 
-        // Send the request
+        // Send the request to start the task
         fetch("/generate", {
             method: "POST",
             body: formData
         })
             .then(response => response.json())
             .then(data => {
-                // Hide status
-                statusDiv.classList.add("d-none");
-
-                // Enable the generate button
-                generateBtn.disabled = false;
-
                 if (data.error) {
+                    // Hide status
+                    statusDiv.classList.add("d-none");
+
+                    // Enable the generate button
+                    generateBtn.disabled = false;
+
                     // Show error
                     errorDiv.textContent = data.error;
                     errorDiv.classList.remove("d-none");
-                } else {
-                    // Show result
-                    audioPreview.src = data.download_url;
-                    downloadLink.href = data.download_url;
-                    resultDiv.classList.remove("d-none");
-
-                    // Scroll to result
-                    resultDiv.scrollIntoView({behavior: "smooth"});
-
-                    // Add a "Back to List" button to the result section
-                    const resultCard = document.querySelector("#result .card-body");
-                    if (resultCard && !document.getElementById("back-to-list-btn")) {
-                        const backBtn = document.createElement("a");
-                        backBtn.id = "back-to-list-btn";
-                        backBtn.href = data.redirect_url || "/";
-                        backBtn.className = "btn btn-secondary mt-3";
-                        backBtn.textContent = "Back to Routines List";
-                        resultCard.appendChild(backBtn);
-                    }
-
-                    // Update the form's routine_id field if this is a new routine
-                    const routineIdField = document.getElementById("routine_id");
-                    if (routineIdField && !routineIdField.value && data.routine_id) {
-                        routineIdField.value = data.routine_id;
-
-                        // Update the URL to reflect the routine ID
-                        if (history.pushState) {
-                            const newUrl = `/routine/${data.routine_id}`;
-                            window.history.pushState({path: newUrl}, "", newUrl);
-                        }
-                    }
+                } else if (data.task_id) {
+                    // Start polling for task status
+                    const redirectToList = data.redirect_url !== null;
+                    pollTaskStatus(data.task_id, redirectToList);
                 }
             })
             .catch(error => {

@@ -8,6 +8,7 @@ from app.config import UPLOAD_FOLDER, OUTPUT_FOLDER, LANGUAGES, SAMPLE_VOICES
 from app.utils import allowed_file
 from app.audio import generate_audio
 from app.models.routine import add_routine, update_routine, get_routine, list_routines, delete_routine
+from app.tasks.tasks import start_task, get_task_status
 
 
 @main_bp.route('/')
@@ -75,56 +76,33 @@ def generate():
             return jsonify({'error': 'Invalid file format'}), 400
 
     try:
-        # Generate the audio file with the routine name
-        output_filename = generate_audio(text, language, voice_path, routine_name=name)
-
-        # Clean up temporary uploaded file if needed
-        if voice_type == 'upload' and os.path.exists(voice_path) and 'temp_' in os.path.basename(voice_path):
-            os.remove(voice_path)
-
         # Store voice ID if using sample voice
         voice_id = None
         if voice_type == 'sample':
             voice_id = request.form.get('sample_voice', '')
 
-        # Store or update the routine
-        if routine_id and get_routine(routine_id):
-            # Update existing routine
-            routine = update_routine(
-                routine_id,
-                output_filename=output_filename,
-                name=name,
-                text=text,
-                language=language,
-                voice_type=voice_type,
-                voice_id=voice_id
-            )
-        else:
-            # Create new routine
-            routine = add_routine(
-                name=name,
-                text=text,
-                language=language,
-                voice_type=voice_type,
-                voice_id=voice_id,
-                output_filename=output_filename
-            )
+        # Start the background task
+        task_id = start_task(
+            text=text,
+            language=language,
+            voice_path=voice_path,
+            routine_name=name,
+            routine_id=routine_id,
+            voice_type=voice_type,
+            voice_id=voice_id
+        )
 
-        # Return the URL to the generated file
+        # Return the task ID
         return jsonify({
             'success': True,
-            'routine_id': routine['id'],
-            'name': routine['name'],
-            'filename': output_filename,
-            'download_url': f'/download/{output_filename}',
-            'redirect_url': url_for('main.index') if redirect_to_list else url_for('main.edit_routine',
-                                                                                   routine_id=routine['id'])
+            'task_id': task_id,
+            'redirect_url': url_for('main.index') if redirect_to_list else None
         })
     except Exception as e:
         # Clean up temporary uploaded file if needed
         if voice_type == 'upload' and os.path.exists(voice_path) and 'temp_' in os.path.basename(voice_path):
             os.remove(voice_path)
-        return jsonify({'error': f'Error generating audio: {str(e)}'}), 500
+        return jsonify({'error': f'Error starting task: {str(e)}'}), 500
 
 
 @main_bp.route('/download/<filename>')
@@ -156,3 +134,32 @@ def delete_routine_by_id(routine_id):
     if not success:
         return jsonify({'error': 'Routine not found'}), 404
     return jsonify({'success': True})
+
+
+@main_bp.route('/task/<task_id>', methods=['GET'])
+def check_task_status(task_id):
+    """Check the status of a background task"""
+    task_status = get_task_status(task_id)
+
+    if task_status is None:
+        return jsonify({'error': 'Task not found'}), 404
+
+    response = {
+        'status': task_status['status']
+    }
+
+    # Include result or error if available
+    if task_status['status'] == 'completed' and task_status['result']:
+        response['result'] = task_status['result']
+
+        # Add redirect URL if needed
+        redirect_to_list = request.args.get('redirect', 'false') == 'true'
+        if redirect_to_list:
+            response['result']['redirect_url'] = url_for('main.index')
+        else:
+            response['result']['redirect_url'] = url_for('main.edit_routine', routine_id=task_status['result']['routine_id'])
+
+    if task_status['status'] == 'failed' and task_status['error']:
+        response['error'] = task_status['error']
+
+    return jsonify(response)
