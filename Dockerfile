@@ -12,10 +12,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Create necessary directories
-RUN mkdir -p static/voices static/output
+RUN mkdir -p app/static/voices app/static/output
 
 # Expose the port the app runs on
 EXPOSE 5000
 
 # Command to run the application
-CMD ["python", "app.py"]
+CMD ["python", "run.py"]

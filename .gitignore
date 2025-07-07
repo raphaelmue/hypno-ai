@@ -32,8 +32,8 @@ ENV/
 *.swo
 
 # Generated files
-static/output/
-static/voices/temp_*
+app/static/output/
+app/static/voices/temp_*
 
 # OS specific
 .DS_Store

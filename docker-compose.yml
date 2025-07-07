@@ -6,8 +6,8 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ./static/voices:/app/static/voices
-      - ./static/output:/app/static/output
+      - ./app/static/voices:/app/app/static/voices
+      - ./app/static/output:/app/app/static/output
     environment:
       - FLASK_ENV=production
     restart: unless-stopped

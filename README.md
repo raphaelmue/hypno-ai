@@ -39,8 +39,8 @@ A web application that generates hypnosis audio from text using XTTS-v2 text-to-
    ```
 
 4. Add sample voice files:
-   - Place WAV files in the `static/voices` directory
-   - Rename them to match the sample voice IDs in `app.py` (e.g., `male1.wav`, `female1.wav`)
+   - Place WAV files in the `app/static/voices` directory
+   - Rename them to match the sample voice IDs in `app/config.py` (e.g., `male1.wav`, `female1.wav`)
 
 ## Usage
 
@@ -48,7 +48,7 @@ A web application that generates hypnosis audio from text using XTTS-v2 text-to-
 
 1. Start the Flask application:
    ```
-   python app.py
+   python run.py
    ```
 
 2. Open your web browser and navigate to:

@@ -1,0 +1,40 @@
+/* Custom styles for the hypnosis audio generator */
+
+body {
+    background-color: #f8f9fa;
+}
+
+.card {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    background: linear-gradient(135deg, #4a6bff 0%, #2541b8 100%);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #4a6bff 0%, #2541b8 100%);
+    border: none;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #3a5bef 0%, #1531a8 100%);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #28a745 0%, #1d8035 100%);
+    border: none;
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #218838 0%, #0d7025 100%);
+}
+
+audio {
+    border-radius: 30px;
+    background-color: #f1f3f4;
+}
+
+#status, #result, #error {
+    transition: all 0.3s ease;
+}
