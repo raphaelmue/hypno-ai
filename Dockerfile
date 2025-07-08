@@ -21,4 +21,4 @@ EXPOSE 5000
 ENV COQUI_TOS_AGREED=1
 
 # Command to run the application with Gunicorn
-CMD ["gunicorn", "--bind", "5000", "run:app"]
+CMD ["gunicorn", "run:app"]
