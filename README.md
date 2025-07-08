@@ -18,7 +18,6 @@ A web application that generates hypnosis audio from text using XTTS-v2 text-to-
 - PyTorch
 - TTS (Text-to-Speech) library with XTTS-v2 support
 - Flask
-- ffmpeg (required for audio processing)
 
 ## Installation
 
@@ -42,18 +41,7 @@ A web application that generates hypnosis audio from text using XTTS-v2 text-to-
    pip install -r requirements.txt
    ```
 
-4. Install ffmpeg (required for audio processing):
-   - On Windows:
-     - Option 1: Install using Chocolatey: `choco install ffmpeg`
-     - Option 2: Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to PATH
-   - On macOS:
-     - Install using Homebrew: `brew install ffmpeg`
-   - On Linux:
-     - Ubuntu/Debian: `sudo apt-get install ffmpeg`
-     - Fedora: `sudo dnf install ffmpeg`
-     - Arch Linux: `sudo pacman -S ffmpeg`
-
-5. Add sample voice files:
+4. Add sample voice files:
    - Place WAV files in the `app/static/voices` directory
    - Rename them to match the sample voice IDs in `app/config.py` (e.g., `male1.wav`, `female1.wav`)
 

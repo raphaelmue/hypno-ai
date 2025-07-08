@@ -2,11 +2,6 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Install system dependencies including ffmpeg
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
-
 RUN pip install --upgrade pip
 
 # Copy requirements first for better caching
