@@ -16,12 +16,6 @@
                         <h2 class="text-center">Create/Edit Hypnosis Routine</h2>
                     </div>
                     <div class="card-body">
-                        <div id="tts-model-status-container" class="alert mb-4" style="display: none;">
-                            <span id="tts-model-status-message"></span>
-                            <button id="download-tts-model-btn" class="btn btn-sm btn-primary ms-2" style="display: none;">
-                                Download TTS Model
-                            </button>
-                        </div>
                         <form id="hypnosis-form">
                             <input type="hidden" id="routine_id" name="routine_id" value="{{ routine.id if routine else '' }}">
 
