@@ -46,6 +46,10 @@ def generate_audio(text, language, voice_path, routine_name=None):
                     if not line:  # Skip empty lines
                         continue
 
+                    # Skip section headers (e.g., "### Introduction ###")
+                    if line.startswith("###") and line.endswith("###"):
+                        continue
+
                     segment_path = os.path.join(temp_dir, f"segment_{main_idx}_{line_idx}.wav")
                     tts.tts_to_file(
                         text=line,
@@ -62,6 +66,10 @@ def generate_audio(text, language, voice_path, routine_name=None):
             for i, line in enumerate(lines):
                 line = line.strip()
                 if not line:  # Skip empty lines
+                    continue
+
+                # Skip section headers (e.g., "### Introduction ###")
+                if line.startswith("###") and line.endswith("###"):
                     continue
 
                 segment_path = os.path.join(temp_dir, f"segment_{i}.wav")
