@@ -21,4 +21,5 @@ EXPOSE 5000
 ENV COQUI_TOS_AGREED=1
 
 # Command to run the application with Gunicorn
-CMD ["python", "run.py"]
+# Use 4 worker processes, bind to all interfaces on port 5000, timeout after 120 seconds
+CMD ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:5000", "--timeout", "120", "run:app"]
