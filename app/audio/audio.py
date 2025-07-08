@@ -47,7 +47,7 @@ def generate_audio(text, language, voice_path, routine_name=None):
                         continue
 
                     # Skip section headers (e.g., "### Introduction ###")
-                    if line.startswith("###") and line.endswith("###"):
+                    if line.startswith("###"):
                         continue
 
                     segment_path = os.path.join(temp_dir, f"segment_{main_idx}_{line_idx}.wav")
@@ -69,7 +69,7 @@ def generate_audio(text, language, voice_path, routine_name=None):
                     continue
 
                 # Skip section headers (e.g., "### Introduction ###")
-                if line.startswith("###") and line.endswith("###"):
+                if line.startswith("###"):
                     continue
 
                 segment_path = os.path.join(temp_dir, f"segment_{i}.wav")
