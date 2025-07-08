@@ -9,6 +9,7 @@ from app.utils import allowed_file
 from app.audio import generate_audio
 from app.models.routine import add_routine, update_routine, get_routine, list_routines, delete_routine
 from app.tasks.tasks import start_task, get_task_status
+from app.tts_model.model import get_model_status, start_model_download, is_model_downloaded
 
 
 @main_bp.route('/')
@@ -163,3 +164,48 @@ def check_task_status(task_id):
         response['error'] = task_status['error']
 
     return jsonify(response)
+
+
+@main_bp.route('/tts-model/status', methods=['GET'])
+def check_model_status():
+    """Check the status of the TTS model"""
+    model_status_data = get_model_status()
+
+    return jsonify({
+        'status': model_status_data['status'],
+        'error': model_status_data['error']
+    })
+
+
+@main_bp.route('/tts-model/download', methods=['POST'])
+def download_model():
+    """Trigger the download of the TTS model"""
+    # Check if the model is already downloaded or downloading
+    model_status_data = get_model_status()
+
+    if model_status_data['status'] == 'downloaded':
+        return jsonify({
+            'status': 'downloaded',
+            'message': 'TTS model is already downloaded'
+        })
+
+    if model_status_data['status'] == 'downloading':
+        return jsonify({
+            'status': 'downloading',
+            'message': 'TTS model download is already in progress'
+        })
+
+    # Start the model download
+    started = start_model_download()
+
+    if started:
+        return jsonify({
+            'status': 'downloading',
+            'message': 'TTS model download started'
+        })
+    else:
+        return jsonify({
+            'status': model_status_data['status'],
+            'message': 'Failed to start TTS model download',
+            'error': model_status_data['error']
+        }), 500

@@ -1,15 +1,22 @@
 import os
 import uuid
 import tempfile
-from TTS.api import TTS
 from pydub import AudioSegment
 from app.config import OUTPUT_FOLDER
 from app.utils import slugify
+from app.tts_model.model import get_tts_model, get_model_status
 
 def generate_audio(text, language, voice_path, routine_name=None):
     """Generate audio using XTTS-v2 with support for [break] markers and line breaks"""
-    # Initialize TTS with XTTS-v2
-    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
+    # Check if the TTS model is downloaded
+    model_status = get_model_status()
+    if model_status['status'] != 'downloaded':
+        raise Exception(f"TTS model is not downloaded. Current status: {model_status['status']}")
+
+    # Get the TTS model
+    tts = get_tts_model()
+    if tts is None:
+        raise Exception("Failed to load TTS model")
 
     # Generate a filename based on the routine name or a UUID if no name is provided
     if routine_name:

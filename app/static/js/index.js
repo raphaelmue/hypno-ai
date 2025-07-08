@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Check TTS model status when page loads
+    checkTTSModelStatus();
+
     // Add event listeners to routine buttons
     function addRoutineButtonListeners() {
         // Regenerate routine buttons
@@ -173,4 +176,120 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize by adding event listeners to routine buttons
     addRoutineButtonListeners();
+
+    // Add event listener to the download TTS model button
+    const downloadModelBtn = document.getElementById('download-tts-model-btn');
+    if (downloadModelBtn) {
+        downloadModelBtn.addEventListener('click', downloadTTSModel);
+    }
+
+    // Function to check TTS model status
+    function checkTTSModelStatus() {
+        fetch('/tts-model/status')
+            .then(response => response.json())
+            .then(data => {
+                updateTTSModelStatusUI(data);
+
+                // If the model is downloading, poll for status updates
+                if (data.status === 'downloading') {
+                    setTimeout(checkTTSModelStatus, 5000); // Check every 5 seconds
+                }
+            })
+            .catch(error => {
+                console.error('Error checking TTS model status:', error);
+                // Show error in the status container
+                const statusContainer = document.getElementById('tts-model-status-container');
+                const statusMessage = document.getElementById('tts-model-status-message');
+                if (statusContainer && statusMessage) {
+                    statusContainer.style.display = 'block';
+                    statusContainer.className = 'alert alert-danger mb-4';
+                    statusMessage.textContent = 'Error checking TTS model status. Please refresh the page.';
+                }
+            });
+    }
+
+    // Function to update the UI based on TTS model status
+    function updateTTSModelStatusUI(data) {
+        const statusContainer = document.getElementById('tts-model-status-container');
+        const statusMessage = document.getElementById('tts-model-status-message');
+        const downloadBtn = document.getElementById('download-tts-model-btn');
+
+        if (!statusContainer || !statusMessage || !downloadBtn) return;
+
+        statusContainer.style.display = 'block';
+
+        switch (data.status) {
+            case 'not_downloaded':
+                statusContainer.className = 'alert alert-warning mb-4';
+                statusMessage.textContent = 'TTS model is not downloaded. You need to download it to generate audio.';
+                downloadBtn.style.display = 'inline-block';
+                downloadBtn.disabled = false;
+                downloadBtn.textContent = 'Download TTS Model';
+                break;
+            case 'downloading':
+                statusContainer.className = 'alert alert-info mb-4';
+                statusMessage.textContent = 'TTS model is downloading. This may take several minutes...';
+                downloadBtn.style.display = 'none';
+                break;
+            case 'downloaded':
+                statusContainer.className = 'alert alert-success mb-4';
+                statusMessage.textContent = 'TTS model is downloaded and ready to use.';
+                downloadBtn.style.display = 'none';
+                break;
+            case 'failed':
+                statusContainer.className = 'alert alert-danger mb-4';
+                statusMessage.textContent = `TTS model download failed: ${data.error || 'Unknown error'}`;
+                downloadBtn.style.display = 'inline-block';
+                downloadBtn.disabled = false;
+                downloadBtn.textContent = 'Retry Download';
+                break;
+            default:
+                statusContainer.className = 'alert alert-secondary mb-4';
+                statusMessage.textContent = `TTS model status: ${data.status}`;
+                downloadBtn.style.display = 'none';
+        }
+    }
+
+    // Function to download the TTS model
+    function downloadTTSModel() {
+        const downloadBtn = document.getElementById('download-tts-model-btn');
+        if (downloadBtn) {
+            downloadBtn.disabled = true;
+            downloadBtn.textContent = 'Starting download...';
+        }
+
+        fetch('/tts-model/download', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'downloading') {
+                // Update UI to show downloading status
+                updateTTSModelStatusUI({
+                    status: 'downloading',
+                    error: null
+                });
+
+                // Start polling for status updates
+                setTimeout(checkTTSModelStatus, 5000); // Check every 5 seconds
+            } else {
+                // Update UI with the current status
+                updateTTSModelStatusUI(data);
+            }
+        })
+        .catch(error => {
+            console.error('Error starting TTS model download:', error);
+            // Show error in the status container
+            updateTTSModelStatusUI({
+                status: 'failed',
+                error: 'Error starting download. Please try again.'
+            });
+
+            // Re-enable the download button
+            if (downloadBtn) {
+                downloadBtn.disabled = false;
+                downloadBtn.textContent = 'Retry Download';
+            }
+        });
+    }
 });
