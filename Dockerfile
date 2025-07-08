@@ -12,7 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Create necessary directories
-RUN mkdir -p app/static/voices app/static/output
+RUN mkdir -p app/static/voices app/static/output app/static/tasks
 
 # Expose the port the app runs on
 EXPOSE 5000
