@@ -12,13 +12,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Create necessary directories
-RUN mkdir -p app/static/voices app/static/output
+RUN mkdir -p static/voices static/output
 
-# Expose the port the app runs on
-EXPOSE 5000
-
-# Set required environment variables
+# Set environment variable to agree to Coqui TOS
 ENV COQUI_TOS_AGREED=1
 
-# Command to run the application with Gunicorn
-CMD ["gunicorn", "--bind", "5000", "run:app"]
+# Command to run the worker
+CMD ["rq", "worker", "--url", "${REDIS_URL}", "hypno_ai_tasks"]

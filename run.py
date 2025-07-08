@@ -7,4 +7,4 @@ app = create_app()
 if __name__ == '__main__':
     # In production, bind to all interfaces and disable debug mode
     os.environ["COQUI_TOS_AGREED"] = "1"
-    app.run(host='127.0.0.1', port=5000, debug=False)
+    app.run(port=5000, debug=False)
