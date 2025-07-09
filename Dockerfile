@@ -21,6 +21,5 @@ EXPOSE 5000
 ENV COQUI_TOS_AGREED=1
 
 # Command to run the application with Gunicorn
-# Use 2 worker processes, bind to all interfaces on port 5000, timeout after 300 seconds
-# Added max-requests to recycle workers and prevent memory leaks
-CMD ["gunicorn", "--workers", "2", "--bind", "0.0.0.0:5000", "--timeout", "300", "--max-requests", "10", "--max-requests-jitter", "5", "run:app"]
+# Use 4 worker processes, bind to all interfaces on port 5000, timeout after 120 seconds
+CMD ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:5000", "--timeout", "120", "run:app"]
