@@ -2,13 +2,12 @@ version: '3'
 
 services:
   hypno-ai:
-    build: .
+    image: ghcr.io/raphaelmue/hypno-ai:latest
     ports:
       - "5000:5000"
     volumes:
       - ./app/static/voices:/app/app/static/voices
       - ./app/static/output:/app/app/static/output
     environment:
-      - FLASK_ENV=production
-      - COQUI_TOS_AGREED=1
+      - AUDIO_GENERATION_THREADS=4
     restart: unless-stopped

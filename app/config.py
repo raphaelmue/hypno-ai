@@ -1,6 +1,19 @@
 import os
 import logging.config
 
+# Default values
+DEFAULT_AUDIO_THREADS = 4
+
+# Environment variables
+try:
+    AUDIO_GENERATION_THREADS = int(os.environ.get('AUDIO_GENERATION_THREADS', DEFAULT_AUDIO_THREADS))
+    # Ensure at least 1 thread
+    AUDIO_GENERATION_THREADS = max(1, AUDIO_GENERATION_THREADS)
+except (ValueError, TypeError):
+    # If the environment variable is not a valid integer, use the default value
+    print(f"Warning: Invalid value for AUDIO_GENERATION_THREADS environment variable. Using default value of {DEFAULT_AUDIO_THREADS}.")
+    AUDIO_GENERATION_THREADS = DEFAULT_AUDIO_THREADS
+
 # Flask app configuration
 # Use absolute paths for Docker/Gunicorn compatibility
 BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))

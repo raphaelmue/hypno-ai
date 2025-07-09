@@ -10,7 +10,7 @@ import time
 from TTS.api import TTS
 from pydub import AudioSegment
 
-from app.config import OUTPUT_FOLDER
+from app.config import OUTPUT_FOLDER, AUDIO_GENERATION_THREADS
 from app.utils import slugify
 
 
@@ -20,7 +20,7 @@ class AudioGenerator:
     Processes text in small chunks to avoid memory issues and concatenates at the end.
     """
 
-    def __init__(self, model_name="tts_models/multilingual/multi-dataset/xtts_v2", num_threads=4):
+    def __init__(self, model_name="tts_models/multilingual/multi-dataset/xtts_v2", num_threads=AUDIO_GENERATION_THREADS):
         """
         Initialize the AudioGenerator with the specified TTS model and number of threads.
 
@@ -341,7 +341,7 @@ class AudioGenerator:
             raise
 
 
-def generate_audio(text, language, voice_path, routine_name=None, num_threads=4):
+def generate_audio(text, language, voice_path, routine_name=None, num_threads=AUDIO_GENERATION_THREADS):
     """Generate audio using XTTS-v2 with support for [break] markers and line breaks"""
     logger = logging.getLogger(__name__)
     logger.info(f"generate_audio called with language={language}, routine_name={routine_name}, num_threads={num_threads}")

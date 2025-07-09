@@ -19,6 +19,7 @@ EXPOSE 5000
 
 # Set required environment variables
 ENV COQUI_TOS_AGREED=1
+ENV AUDIO_GENERATION_THREADS=4
 
 # Command to run the application with Gunicorn
 # Use 4 worker processes, bind to all interfaces on port 5000, timeout after 120 seconds
