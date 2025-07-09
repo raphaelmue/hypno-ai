@@ -1,0 +1,22 @@
+2025-07-09 18:38:56,941 [ERROR] app.audio.audio (audio.py:366): Error during audio generation: name 'segment_files' is not defined
+Traceback (most recent call last):
+  File "C:\Users\D070307\workspace\hypno-ai\app\audio\audio.py", line 320, in generate
+    segment_files.append(result_queue.get())
+NameError: name 'segment_files' is not defined
+2025-07-09 18:38:56,942 [ERROR] app.audio.audio (audio.py:381): generate_audio failed: name 'segment_files' is not defined
+Traceback (most recent call last):
+  File "C:\Users\D070307\workspace\hypno-ai\app\audio\audio.py", line 377, in generate_audio
+    result = generator.generate(text, language, voice_path, routine_name, progress_callback)
+  File "C:\Users\D070307\workspace\hypno-ai\app\audio\audio.py", line 320, in generate
+    segment_files.append(result_queue.get())
+NameError: name 'segment_files' is not defined
+2025-07-09 18:38:56,943 [ERROR] app.desktop.task_manager (task_manager.py:185): Error in task: name 'segment_files' is not defined
+Traceback (most recent call last):
+  File "C:\Users\D070307\workspace\hypno-ai\app\desktop\task_manager.py", line 109, in _run_task
+    output_filename = generate_audio(
+  File "C:\Users\D070307\workspace\hypno-ai\app\audio\audio.py", line 377, in generate_audio
+    result = generator.generate(text, language, voice_path, routine_name, progress_callback)
+  File "C:\Users\D070307\workspace\hypno-ai\app\audio\audio.py", line 320, in generate
+    segment_files.append(result_queue.get())
+NameError: name 'segment_files' is not defined
+2025-07-09 18:38:56,944 [ERROR] app.desktop.routine_editor (routine_editor.py:393): Audio generation failed: name 'segment_files' is not defined

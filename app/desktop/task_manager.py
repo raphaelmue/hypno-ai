@@ -102,11 +102,16 @@ class TaskManager(QObject):
             self.logger.info(f"Generating audio for routine '{routine_name}'")
             self.task_progress.emit(30, "Generating audio...")
 
+            # Define a progress callback function
+            def progress_callback(percent, message):
+                self.task_progress.emit(percent, message)
+
             output_filename = generate_audio(
                 text=text,
                 language=language,
                 voice_path=voice_path,
-                routine_name=routine_name
+                routine_name=routine_name,
+                progress_callback=progress_callback
             )
 
             self.logger.info(f"Audio generation completed: {output_filename}")

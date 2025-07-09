@@ -16,6 +16,7 @@ class RoutinesListWidget(QWidget):
     # Define signals
     new_routine_requested = pyqtSignal()
     edit_routine_requested = pyqtSignal(str)  # routine_id
+    routine_selected = pyqtSignal(str)  # routine_id
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -64,8 +65,17 @@ class RoutinesListWidget(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.verticalHeader().setVisible(False)
+        self.table.setMouseTracking(True)
+        self.table.clicked.connect(self.on_table_clicked)
+
+        # Connect selection change signal
+        self.table.itemSelectionChanged.connect(self.on_selection_changed)
+
+        # Store routine IDs for each row
+        self.routine_ids = []
 
         self.layout.addWidget(self.table)
 
@@ -76,8 +86,9 @@ class RoutinesListWidget(QWidget):
         # Get all routines
         routines = list_routines()
 
-        # Clear the table
+        # Clear the table and routine IDs
         self.table.setRowCount(0)
+        self.routine_ids = []
 
         if not routines:
             self.logger.info("No routines found")
@@ -93,6 +104,8 @@ class RoutinesListWidget(QWidget):
         self.table.setRowCount(len(routines))
 
         for row, (routine_id, routine) in enumerate(routines.items()):
+            # Store the routine ID for this row
+            self.routine_ids.append(routine_id)
             # Name
             name_item = QTableWidgetItem(routine.get('name', 'Unnamed'))
             self.table.setItem(row, 0, name_item)
@@ -193,6 +206,38 @@ class RoutinesListWidget(QWidget):
             else:
                 self.logger.error(f"Failed to delete routine: {routine_id}")
                 QMessageBox.warning(self, "Error", "Failed to delete routine.")
+
+    def on_selection_changed(self):
+        """Handle selection change in the routines table"""
+        selected_rows = self.table.selectionModel().selectedRows()
+        self.logger.debug(f"Selection changed: {len(selected_rows)} rows selected, {len(self.routine_ids)} routine IDs available")
+
+        if selected_rows and len(self.routine_ids) > 0:
+            row = selected_rows[0].row()
+            self.logger.debug(f"Selected row index: {row}")
+
+            if 0 <= row < len(self.routine_ids):
+                routine_id = self.routine_ids[row]
+                self.logger.info(f"Routine selected: {routine_id}")
+                self.routine_selected.emit(routine_id)
+            else:
+                self.logger.warning(f"Invalid row index: {row}, routine_ids length: {len(self.routine_ids)}")
+        elif not selected_rows:
+            self.logger.debug("No rows selected")
+        elif len(self.routine_ids) == 0:
+            self.logger.debug("No routine IDs available")
+
+    def on_table_clicked(self, index):
+        """Handle click on the table"""
+        row = index.row()
+        self.logger.debug(f"Table clicked at row {row}")
+
+        if 0 <= row < len(self.routine_ids):
+            routine_id = self.routine_ids[row]
+            self.logger.info(f"Routine selected from table click: {routine_id}")
+            self.routine_selected.emit(routine_id)
+        else:
+            self.logger.warning(f"Invalid row index from click: {row}, routine_ids length: {len(self.routine_ids)}")
 
     def on_play_clicked(self):
         """Handle click on a Play button"""

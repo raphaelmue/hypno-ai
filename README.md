@@ -18,7 +18,7 @@ A desktop application that generates hypnosis audio from text using XTTS-v2 text
 - Python 3.8+
 - PyTorch
 - TTS (Text-to-Speech) library with XTTS-v2 support
-- PyQt5 for the desktop UI
+- PyQt6 for the desktop UI
 
 ## Installation
 

@@ -385,8 +385,7 @@ class RoutineEditorWidget(QWidget):
         # Re-enable the generate button
         self.generate_button.setEnabled(True)
 
-        # Emit the save completed signal
-        self.save_completed.emit()
+        # Don't emit the save_completed signal here to keep the routine open after generation
 
     def on_task_failed(self, error):
         """Handle task failure"""
