@@ -1,21 +1,21 @@
+import logging
 import os
 import uuid
-import logging
-import threading
+
+from PyQt6.QtCore import pyqtSignal, QUrl
+from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QLineEdit, QTextEdit, QComboBox, QRadioButton, QFileDialog,
     QMessageBox, QProgressBar, QGroupBox, QFormLayout, QButtonGroup,
     QApplication
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QUrl
-from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 
-from app.models.routine import get_routine, add_routine, update_routine
-from app.config import LANGUAGES, SAMPLE_VOICES, UPLOAD_FOLDER, OUTPUT_FOLDER, ALLOWED_EXTENSIONS
-from app.utils import allowed_file
-from app.audio import generate_audio
+from app.config import LANGUAGES, SAMPLE_VOICES, OUTPUT_FOLDER
 from app.desktop.task_manager import TaskManager
+from app.models.routine import get_routine
+from app.utils import allowed_file
+
 
 class RoutineEditorWidget(QWidget):
     """Widget for creating and editing routines"""
@@ -141,6 +141,11 @@ class RoutineEditorWidget(QWidget):
         """Set up the button bar at the bottom of the form"""
         button_layout = QHBoxLayout()
 
+        # Save button (saves without generating)
+        self.save_routine_button = QPushButton("Save")
+        self.save_routine_button.clicked.connect(self.on_save_routine_clicked)
+        button_layout.addWidget(self.save_routine_button)
+
         # Generate button
         self.generate_button = QPushButton("Generate Hypnosis Audio")
         self.generate_button.clicked.connect(self.on_generate_clicked)
@@ -203,9 +208,9 @@ class RoutineEditorWidget(QWidget):
         self.stop_button.clicked.connect(self.on_stop_clicked)
         audio_layout.addWidget(self.stop_button)
 
-        self.save_button = QPushButton("Save Audio")
-        self.save_button.clicked.connect(self.on_save_clicked)
-        audio_layout.addWidget(self.save_button)
+        self.save_audio_button = QPushButton("Save Audio to File")
+        self.save_audio_button.clicked.connect(self.on_save_clicked)
+        audio_layout.addWidget(self.save_audio_button)
 
         result_layout.addLayout(audio_layout)
 
@@ -424,9 +429,76 @@ class RoutineEditorWidget(QWidget):
         self.logger.info("Stop button clicked")
         self.player.stop()
 
+    def on_save_routine_clicked(self):
+        """Handle click on the Save button (saves routine without generating audio)"""
+        self.logger.info("Save routine button clicked")
+
+        # Validate inputs
+        name = self.name_input.text().strip()
+        text = self.text_input.toPlainText().strip()
+        language = self.language_combo.currentData()
+
+        if not text:
+            QMessageBox.warning(self, "Error", "Please enter a hypnosis script.")
+            return
+
+        # Use a default name if none provided
+        if not name:
+            name = f"Routine {uuid.uuid4().hex[:8]}"
+
+        # Get voice type and ID based on selection
+        voice_type = 'sample' if self.sample_voice_radio.isChecked() else 'upload'
+        voice_id = None
+
+        if voice_type == 'sample':
+            voice_id = self.sample_voice_combo.currentData()
+        else:
+            if not self.voice_path:
+                QMessageBox.warning(self, "Error", "Please select a voice file.")
+                return
+
+        # Save the routine to the database
+        try:
+            from app.models.routine import add_routine, update_routine, get_routine
+
+            if self.routine_id and get_routine(self.routine_id):
+                # Update existing routine
+                self.logger.info(f"Updating existing routine {self.routine_id}")
+                routine = update_routine(
+                    self.routine_id,
+                    name=name,
+                    text=text,
+                    language=language,
+                    voice_type=voice_type,
+                    voice_id=voice_id
+                )
+                self.logger.info(f"Routine {self.routine_id} updated successfully")
+            else:
+                # Create new routine
+                self.logger.info(f"Creating new routine")
+                routine = add_routine(
+                    name=name,
+                    text=text,
+                    language=language,
+                    voice_type=voice_type,
+                    voice_id=voice_id
+                )
+                self.routine_id = routine['id']
+                self.logger.info(f"New routine created with ID {routine['id']}")
+
+            # Show success message
+            QMessageBox.information(self, "Success", "Routine saved successfully.")
+
+            # Emit the save_completed signal to update the UI
+            self.save_completed.emit()
+
+        except Exception as e:
+            self.logger.error(f"Error saving routine: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to save routine: {str(e)}")
+
     def on_save_clicked(self):
-        """Handle click on the Save button"""
-        self.logger.info("Save button clicked")
+        """Handle click on the Save Audio button"""
+        self.logger.info("Save Audio button clicked")
 
         if not self.output_filename:
             QMessageBox.warning(self, "Error", "No audio file available.")

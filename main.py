@@ -1,8 +1,15 @@
 import os
 import sys
+import logging
+import logging.config
 from PyQt6.QtWidgets import QApplication
 from app.desktop.main_window import MainWindow
-from app.config import UPLOAD_FOLDER, OUTPUT_FOLDER
+from app.config import UPLOAD_FOLDER, OUTPUT_FOLDER, LOGGING_CONFIG
+from app.models.migrations import check_migrations, run_migrations
+
+# Configure logging
+logging.config.dictConfig(LOGGING_CONFIG)
+logger = logging.getLogger(__name__)
 
 # Ensure required directories exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -10,6 +17,20 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 # Set environment variable for Coqui TTS
 os.environ["COQUI_TOS_AGREED"] = "1"
+
+# Check for and apply database migrations
+try:
+    if check_migrations():
+        logger.info("Database migrations needed, applying...")
+        if run_migrations():
+            logger.info("Database migrations applied successfully")
+        else:
+            logger.error("Failed to apply database migrations")
+    else:
+        logger.info("Database schema is up to date")
+except Exception as e:
+    logger.error(f"Error checking or applying database migrations: {str(e)}")
+    logger.exception("Migration error details:")
 
 def main():
     """Main entry point for the desktop application"""

@@ -1,9 +1,10 @@
-import os
-import uuid
 import json
-import time
-import threading
 import logging
+import os
+import threading
+import time
+import uuid
+
 from app.audio import generate_audio
 from app.models.routine import add_routine, update_routine, get_routine
 

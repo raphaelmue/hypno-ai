@@ -9,16 +9,5 @@
     "output_filename": "test.wav",
     "created_at": "2025-07-07T20:46:01.162871",
     "updated_at": "2025-07-09T18:26:44.944880"
-  },
-  "7fb5d961-1211-469a-ba60-01ca166e79d4": {
-    "id": "7fb5d961-1211-469a-ba60-01ca166e79d4",
-    "name": "test2",
-    "text": "this is a test.",
-    "language": "en",
-    "voice_type": "sample",
-    "voice_id": "male1",
-    "output_filename": "test2.wav",
-    "created_at": "2025-07-09T18:42:51.585972",
-    "updated_at": "2025-07-09T18:42:51.585972"
   }
 }

@@ -1,14 +1,15 @@
 import logging
 
 from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
     QPushButton, QLabel, QMessageBox, QFrame,
-    QStackedWidget
-)
+    QStackedWidget, )
 
 from app.desktop.routine_editor import RoutineEditorWidget
 from app.desktop.routines_list import RoutinesListWidget
+from app.desktop.settings_dialog import SettingsDialog
 
 
 class MainWindow(QMainWindow):
@@ -24,6 +25,9 @@ class MainWindow(QMainWindow):
         # Set up window properties
         self.setWindowTitle("Hypno-AI")
         self.setMinimumSize(QSize(1000, 700))
+
+        # Create the menu bar
+        self.setup_menu_bar()
 
         # Create the central widget and layout
         self.central_widget = QWidget()
@@ -196,6 +200,72 @@ class MainWindow(QMainWindow):
         self.regenerate_button.setEnabled(True)
         # Open the routine in the editor
         self.edit_routine(routine_id)
+
+    def setup_menu_bar(self):
+        """Set up the menu bar"""
+        self.logger.info("Setting up menu bar")
+
+        # Create the menu bar
+        menu_bar = self.menuBar()
+
+        # File menu
+        file_menu = menu_bar.addMenu("&File")
+
+        # New routine action
+        new_action = QAction("&New Routine", self)
+        new_action.setShortcut("Ctrl+N")
+        new_action.triggered.connect(self.create_new_routine)
+        file_menu.addAction(new_action)
+
+        file_menu.addSeparator()
+
+        # Exit action
+        exit_action = QAction("E&xit", self)
+        exit_action.setShortcut("Alt+F4")
+        exit_action.triggered.connect(self.close)
+        file_menu.addAction(exit_action)
+
+        # Tools menu
+        tools_menu = menu_bar.addMenu("&Tools")
+
+        # Settings action
+        settings_action = QAction("&Settings", self)
+        settings_action.triggered.connect(self.show_settings_dialog)
+        tools_menu.addAction(settings_action)
+
+
+        # Help menu
+        help_menu = menu_bar.addMenu("&Help")
+
+        # About action
+        about_action = QAction("&About", self)
+        about_action.triggered.connect(self.show_about_dialog)
+        help_menu.addAction(about_action)
+
+    def show_settings_dialog(self):
+        """Show the settings dialog"""
+        self.logger.info("Showing settings dialog")
+        dialog = SettingsDialog(self)
+        dialog.settings_changed.connect(self.on_settings_changed)
+        dialog.exec()
+
+
+    def show_about_dialog(self):
+        """Show the about dialog"""
+        self.logger.info("Showing about dialog")
+        QMessageBox.about(
+            self,
+            "About Hypno-AI",
+            "Hypno-AI\n\n"
+            "A tool for generating hypnosis audio files.\n\n"
+            "Version 1.0.0"
+        )
+
+    def on_settings_changed(self):
+        """Handle settings changed signal"""
+        self.logger.info("Settings changed")
+        # Refresh the UI to reflect the new settings
+        self.routines_list.refresh()
 
     def closeEvent(self, event):
         """Handle window close event"""

@@ -1,11 +1,12 @@
-import os
-import uuid
 import logging
+import os
 import threading
+
 from PyQt6.QtCore import QObject, pyqtSignal
 
-from app.models.routine import add_routine, update_routine, get_routine
 from app.audio import generate_audio
+from app.models.routine import add_routine, update_routine, get_routine
+
 
 class TaskManager(QObject):
     """

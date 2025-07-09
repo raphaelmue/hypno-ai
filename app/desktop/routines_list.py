@@ -1,14 +1,15 @@
-import os
 import logging
+import os
+
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
-    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
     QAbstractItemView
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QSize
 
-from app.models.routine import list_routines, delete_routine, get_routine
 from app.config import LANGUAGES, OUTPUT_FOLDER
+from app.models.routine import list_routines, delete_routine, get_routine
+
 
 class RoutinesListWidget(QWidget):
     """Widget for displaying and managing the list of routines"""
@@ -141,8 +142,11 @@ class RoutinesListWidget(QWidget):
             # Play button
             play_button = QPushButton("Play")
             play_button.setProperty("routine_id", routine_id)
-            play_button.setProperty("output_filename", routine.get('output_filename', ''))
+            output_filename = routine.get('output_filename', '')
+            play_button.setProperty("output_filename", output_filename)
             play_button.clicked.connect(self.on_play_clicked)
+            # Disable the play button if there's no output filename (routine hasn't been generated)
+            play_button.setEnabled(bool(output_filename))
             actions_layout.addWidget(play_button)
 
             self.table.setCellWidget(row, 3, actions_widget)

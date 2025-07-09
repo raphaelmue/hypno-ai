@@ -1,29 +1,17 @@
 import os
-import logging.config
 
-# Default values
-DEFAULT_AUDIO_THREADS = 4
-
-# Environment variables
-try:
-    AUDIO_GENERATION_THREADS = int(os.environ.get('AUDIO_GENERATION_THREADS', DEFAULT_AUDIO_THREADS))
-    # Ensure at least 1 thread
-    AUDIO_GENERATION_THREADS = max(1, AUDIO_GENERATION_THREADS)
-except (ValueError, TypeError):
-    # If the environment variable is not a valid integer, use the default value
-    print(f"Warning: Invalid value for AUDIO_GENERATION_THREADS environment variable. Using default value of {DEFAULT_AUDIO_THREADS}.")
-    AUDIO_GENERATION_THREADS = DEFAULT_AUDIO_THREADS
+from app.models.settings import settings
 
 # Application configuration
 # Use absolute paths for compatibility
 BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-UPLOAD_FOLDER = os.path.join(BASE_DIR, 'app', 'static', 'voices')
-OUTPUT_FOLDER = os.path.join(BASE_DIR, 'app', 'static', 'output')
-ALLOWED_EXTENSIONS = {'wav', 'mp3', 'ogg'}
 
-# Ensure directories exist
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+# Get settings from the settings singleton
+DATA_DIR = settings.get_data_dir()
+UPLOAD_FOLDER = settings.get_upload_folder()
+OUTPUT_FOLDER = settings.get_output_folder()
+AUDIO_GENERATION_THREADS = settings.get('audio_threads', 4)
+ALLOWED_EXTENSIONS = {'wav', 'mp3', 'ogg'}
 
 # Sample voices (these would be pre-loaded)
 SAMPLE_VOICES = {
