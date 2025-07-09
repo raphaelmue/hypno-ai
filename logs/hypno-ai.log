@@ -1,0 +1,146 @@
+2025-07-09 16:04:01,868 [INFO] app (__init__.py:11): Starting Hypno-AI application
+2025-07-09 16:04:41,278 [INFO] app.tasks.tasks (tasks.py:16): Task system initialized with task folder: app\static\tasks
+2025-07-09 16:04:41,320 [INFO] werkzeug (_internal.py:97): [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2025-07-09 16:04:41,320 [INFO] werkzeug (_internal.py:97): [33mPress CTRL+C to quit[0m
+2025-07-09 16:04:45,914 [INFO] app.routes.routes (routes.py:21): Index page requested from 127.0.0.1
+2025-07-09 16:04:45,945 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:04:45] "GET / HTTP/1.1" 200 -
+2025-07-09 16:04:46,031 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:04:46] "GET /static/css/style.css HTTP/1.1" 200 -
+2025-07-09 16:04:46,233 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:04:46] "GET /static/js/index.js HTTP/1.1" 200 -
+2025-07-09 16:04:46,604 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:04:46] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-07-09 16:04:48,175 [INFO] app.routes.routes (routes.py:37): Edit routine page requested for routine_id=9ffea1e3-8620-462c-9414-74e28ff9f206 from 127.0.0.1
+2025-07-09 16:04:48,194 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:04:48] "GET /routine/9ffea1e3-8620-462c-9414-74e28ff9f206 HTTP/1.1" 200 -
+2025-07-09 16:04:48,487 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:04:48] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
+2025-07-09 16:04:48,579 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:04:48] "GET /static/js/routine.js HTTP/1.1" 200 -
+2025-07-09 16:04:48,889 [INFO] app.routes.routes (routes.py:172): Get routine requested for ID: 9ffea1e3-8620-462c-9414-74e28ff9f206 from 127.0.0.1
+2025-07-09 16:04:48,890 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:04:48] "GET /routines/9ffea1e3-8620-462c-9414-74e28ff9f206 HTTP/1.1" 200 -
+2025-07-09 16:04:49,153 [INFO] app.routes.routes (routes.py:156): Download requested for file: test.wav from 127.0.0.1
+2025-07-09 16:04:49,155 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:04:49] "[33mGET /download/test.wav HTTP/1.1[0m" 404 -
+2025-07-09 16:04:56,649 [INFO] app.routes.routes (routes.py:49): Audio generation requested from 127.0.0.1
+2025-07-09 16:04:56,650 [INFO] app.routes.routes (routes.py:59): Generation request: name='Test', language=de, voice_type=sample, routine_id=9ffea1e3-8620-462c-9414-74e28ff9f206, text_length=413
+2025-07-09 16:04:56,651 [INFO] app.routes.routes (routes.py:120): Starting background task for routine 'Test'
+2025-07-09 16:04:56,651 [INFO] app.tasks.tasks (tasks.py:177): Creating new task 48b3437a-5c0e-4af7-aa78-2ffbe5dc665c for routine 'Test' with 4 threads
+2025-07-09 16:04:56,652 [INFO] app.tasks.tasks (tasks.py:193): Task 48b3437a-5c0e-4af7-aa78-2ffbe5dc665c initialized with status 'pending'
+2025-07-09 16:04:56,653 [INFO] app.tasks.tasks (tasks.py:68): Starting background task 48b3437a-5c0e-4af7-aa78-2ffbe5dc665c for routine 'Test' with 4 threads
+2025-07-09 16:04:56,653 [INFO] app.tasks.tasks (tasks.py:203): Background thread started for task 48b3437a-5c0e-4af7-aa78-2ffbe5dc665c
+2025-07-09 16:04:56,654 [INFO] app.routes.routes (routes.py:131): Background task started with ID: 48b3437a-5c0e-4af7-aa78-2ffbe5dc665c
+2025-07-09 16:04:56,654 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:04:56] "POST /generate HTTP/1.1" 200 -
+2025-07-09 16:04:56,669 [INFO] app.tasks.tasks (tasks.py:78): Task 48b3437a-5c0e-4af7-aa78-2ffbe5dc665c status updated to 'processing'
+2025-07-09 16:04:56,670 [INFO] app.tasks.tasks (tasks.py:83): Generating audio for task 48b3437a-5c0e-4af7-aa78-2ffbe5dc665c with 413 characters of text
+2025-07-09 16:04:56,670 [INFO] app.audio.audio (audio.py:347): generate_audio called with language=de, routine_name=Test, num_threads=4
+2025-07-09 16:04:56,670 [INFO] app.audio.audio (audio.py:32): Initializing AudioGenerator with model=tts_models/multilingual/multi-dataset/xtts_v2, threads=4
+2025-07-09 16:04:56,671 [INFO] app.audio.audio (audio.py:262): Starting audio generation for text of length 413 in language de
+2025-07-09 16:04:56,673 [INFO] app.audio.audio (audio.py:269): Using routine name 'Test' for output filename: test.wav
+2025-07-09 16:04:56,676 [INFO] app.audio.audio (audio.py:151): Preparing text segments from 413 characters of text
+2025-07-09 16:04:56,677 [INFO] app.audio.audio (audio.py:183): Prepared 7 text segments for processing
+2025-07-09 16:04:56,678 [INFO] app.audio.audio (audio.py:292): Added 7 segments to the work queue
+2025-07-09 16:04:56,678 [INFO] app.audio.audio (audio.py:297): Starting 4 worker threads
+2025-07-09 16:04:56,680 [INFO] app.audio.audio (audio.py:110): Worker thread 41712 started
+2025-07-09 16:04:56,681 [INFO] app.audio.audio (audio.py:110): Worker thread 21412 started
+2025-07-09 16:04:56,682 [INFO] app.audio.audio (audio.py:110): Worker thread 28160 started
+2025-07-09 16:04:56,683 [INFO] app.audio.audio (audio.py:110): Worker thread 13644 started
+2025-07-09 16:04:56,738 [INFO] TTS.utils.manage (manage.py:418): tts_models/multilingual/multi-dataset/xtts_v2 is already downloaded.
+2025-07-09 16:04:56,738 [INFO] TTS.utils.manage (manage.py:418): tts_models/multilingual/multi-dataset/xtts_v2 is already downloaded.
+2025-07-09 16:04:56,739 [INFO] TTS.utils.manage (manage.py:418): tts_models/multilingual/multi-dataset/xtts_v2 is already downloaded.
+2025-07-09 16:04:56,739 [INFO] TTS.utils.manage (manage.py:418): tts_models/multilingual/multi-dataset/xtts_v2 is already downloaded.
+2025-07-09 16:04:57,019 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:04:57] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:04:57,676 [INFO] TTS.tts.models (__init__.py:9): Using model: xtts
+2025-07-09 16:04:57,685 [INFO] TTS.tts.models (__init__.py:9): Using model: xtts
+2025-07-09 16:04:57,686 [INFO] TTS.tts.models (__init__.py:9): Using model: xtts
+2025-07-09 16:04:57,688 [INFO] TTS.tts.models (__init__.py:9): Using model: xtts
+2025-07-09 16:04:59,025 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:04:59] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:02,075 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:02] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:04,762 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:04] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:08,085 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:08] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:11,080 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:11] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:13,771 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:13] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:17,077 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:17] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:19,388 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:19] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:22,083 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:22] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:24,766 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:24] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:28,080 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:28] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:30,769 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:30] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:31,683 [INFO] TTS.utils.synthesizer (synthesizer.py:334): Text split into sentences.
+2025-07-09 16:05:31,684 [INFO] TTS.utils.synthesizer (synthesizer.py:334): Text split into sentences.
+2025-07-09 16:05:31,684 [INFO] TTS.utils.synthesizer (synthesizer.py:335): Input: ['Mit jedem Atemzug entspannst du dich ein wenig mehr.']
+2025-07-09 16:05:31,685 [INFO] TTS.utils.synthesizer (synthesizer.py:334): Text split into sentences.
+2025-07-09 16:05:31,686 [INFO] TTS.utils.synthesizer (synthesizer.py:335): Input: ['Setze oder lege dich ganz bequem hin.']
+2025-07-09 16:05:31,687 [INFO] TTS.utils.synthesizer (synthesizer.py:334): Text split into sentences.
+2025-07-09 16:05:31,688 [INFO] TTS.utils.synthesizer (synthesizer.py:335): Input: ['Spüre, wie dein Rücken getragen wird … deine Schultern weich werden …']
+2025-07-09 16:05:31,688 [INFO] TTS.utils.synthesizer (synthesizer.py:335): Input: ['Atme tief ein … und mit dem Ausatmen spürst du, wie alle Anspannung langsam aus deinem Körper strömt.']
+2025-07-09 16:05:34,081 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:34] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:36,765 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:36] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:40,079 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:40] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:42,767 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:42] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:43,597 [INFO] TTS.utils.synthesizer (synthesizer.py:539): Processing time: 11.914
+2025-07-09 16:05:43,597 [INFO] TTS.utils.synthesizer (synthesizer.py:540): Real-time factor: 3.638
+2025-07-09 16:05:43,776 [INFO] app.audio.audio (audio.py:91): Generated audio for segment 0_0 in 47.09 seconds
+2025-07-09 16:05:43,792 [INFO] TTS.utils.manage (manage.py:418): tts_models/multilingual/multi-dataset/xtts_v2 is already downloaded.
+2025-07-09 16:05:44,221 [INFO] TTS.tts.models (__init__.py:9): Using model: xtts
+2025-07-09 16:05:44,767 [INFO] TTS.utils.synthesizer (synthesizer.py:539): Processing time: 13.092
+2025-07-09 16:05:44,768 [INFO] TTS.utils.synthesizer (synthesizer.py:540): Real-time factor: 3.512
+2025-07-09 16:05:44,786 [INFO] app.audio.audio (audio.py:91): Generated audio for segment 0_2 in 48.10 seconds
+2025-07-09 16:05:44,801 [INFO] TTS.utils.manage (manage.py:418): tts_models/multilingual/multi-dataset/xtts_v2 is already downloaded.
+2025-07-09 16:05:45,195 [INFO] TTS.tts.models (__init__.py:9): Using model: xtts
+2025-07-09 16:05:46,082 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:46] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:47,760 [INFO] TTS.utils.synthesizer (synthesizer.py:539): Processing time: 16.075
+2025-07-09 16:05:47,760 [INFO] TTS.utils.synthesizer (synthesizer.py:540): Real-time factor: 3.220
+2025-07-09 16:05:47,780 [INFO] app.audio.audio (audio.py:91): Generated audio for segment 0_3 in 51.09 seconds
+2025-07-09 16:05:47,788 [INFO] TTS.utils.manage (manage.py:418): tts_models/multilingual/multi-dataset/xtts_v2 is already downloaded.
+2025-07-09 16:05:48,191 [INFO] TTS.tts.models (__init__.py:9): Using model: xtts
+2025-07-09 16:05:48,765 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:48] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:52,086 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:52] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:54,764 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:54] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:05:55,146 [INFO] TTS.utils.synthesizer (synthesizer.py:539): Processing time: 23.460
+2025-07-09 16:05:55,147 [INFO] TTS.utils.synthesizer (synthesizer.py:540): Real-time factor: 2.903
+2025-07-09 16:05:55,174 [INFO] app.audio.audio (audio.py:91): Generated audio for segment 0_1 in 58.49 seconds
+2025-07-09 16:05:55,175 [INFO] app.audio.audio (audio.py:134): Worker thread 21412 finished after processing 1 segments
+2025-07-09 16:05:58,080 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:05:58] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:06:00,088 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:06:00] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:06:02,409 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:06:02] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:06:04,772 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:06:04] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:06:08,073 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:06:08] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:06:09,534 [INFO] TTS.utils.synthesizer (synthesizer.py:334): Text split into sentences.
+2025-07-09 16:06:09,536 [INFO] TTS.utils.synthesizer (synthesizer.py:335): Input: ['Dein Gesicht entspannt sich … deine Stirn wird glatt … deine Augenlider angenehm schwer …']
+2025-07-09 16:06:09,600 [INFO] TTS.utils.synthesizer (synthesizer.py:334): Text split into sentences.
+2025-07-09 16:06:09,601 [INFO] TTS.utils.synthesizer (synthesizer.py:335): Input: ['Alles darf jetzt loslassen.']
+2025-07-09 16:06:09,627 [INFO] TTS.utils.synthesizer (synthesizer.py:334): Text split into sentences.
+2025-07-09 16:06:09,627 [INFO] TTS.utils.synthesizer (synthesizer.py:335): Input: ['Das ist aber nur ein Test.']
+2025-07-09 16:06:10,773 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:06:10] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:06:14,073 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:06:14] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:06:16,760 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:06:16] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:06:18,537 [INFO] TTS.utils.synthesizer (synthesizer.py:539): Processing time: 8.938
+2025-07-09 16:06:18,538 [INFO] TTS.utils.synthesizer (synthesizer.py:540): Real-time factor: 3.220
+2025-07-09 16:06:18,556 [INFO] app.audio.audio (audio.py:91): Generated audio for segment 0_5 in 33.76 seconds
+2025-07-09 16:06:18,562 [INFO] app.audio.audio (audio.py:134): Worker thread 28160 finished after processing 2 segments
+2025-07-09 16:06:19,086 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:06:19] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:06:19,359 [INFO] TTS.utils.synthesizer (synthesizer.py:539): Processing time: 9.733
+2025-07-09 16:06:19,359 [INFO] TTS.utils.synthesizer (synthesizer.py:540): Real-time factor: 3.015
+2025-07-09 16:06:19,367 [INFO] app.audio.audio (audio.py:91): Generated audio for segment 0_6 in 31.58 seconds
+2025-07-09 16:06:19,370 [INFO] app.audio.audio (audio.py:134): Worker thread 13644 finished after processing 2 segments
+2025-07-09 16:06:21,767 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:06:21] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:06:25,079 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:06:25] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:06:26,088 [INFO] TTS.utils.synthesizer (synthesizer.py:539): Processing time: 16.555
+2025-07-09 16:06:26,088 [INFO] TTS.utils.synthesizer (synthesizer.py:540): Real-time factor: 2.144
+2025-07-09 16:06:26,106 [INFO] app.audio.audio (audio.py:91): Generated audio for segment 0_4 in 42.32 seconds
+2025-07-09 16:06:26,107 [INFO] app.audio.audio (audio.py:134): Worker thread 41712 finished after processing 2 segments
+2025-07-09 16:06:26,107 [INFO] app.audio.audio (audio.py:312): All worker threads have completed their tasks
+2025-07-09 16:06:26,108 [INFO] app.audio.audio (audio.py:318): Collected 7 processed segments from result queue
+2025-07-09 16:06:26,108 [INFO] app.audio.audio (audio.py:195): Combining 7 audio segments into C:\Users\D070307\workspace\hypno-ai\app\static\output\test.wav
+2025-07-09 16:06:26,178 [INFO] app.audio.audio (audio.py:237): Exporting combined audio (43.06 seconds) to C:\Users\D070307\workspace\hypno-ai\app\static\output\test.wav
+2025-07-09 16:06:26,179 [INFO] app.audio.audio (audio.py:241): Combined audio segments in 0.07 seconds with 0 breaks and 6 line breaks
+2025-07-09 16:06:26,181 [INFO] app.audio.audio (audio.py:336): Audio generation completed in 89.51 seconds: test.wav
+2025-07-09 16:06:26,181 [INFO] app.audio.audio (audio.py:352): generate_audio completed successfully, generated file: test.wav
+2025-07-09 16:06:26,181 [INFO] app.tasks.tasks (tasks.py:85): Audio generation completed for task 48b3437a-5c0e-4af7-aa78-2ffbe5dc665c, output file: test.wav
+2025-07-09 16:06:26,182 [INFO] app.tasks.tasks (tasks.py:95): Updating existing routine 9ffea1e3-8620-462c-9414-74e28ff9f206 for task 48b3437a-5c0e-4af7-aa78-2ffbe5dc665c
+2025-07-09 16:06:26,183 [INFO] app.tasks.tasks (tasks.py:105): Routine 9ffea1e3-8620-462c-9414-74e28ff9f206 updated successfully
+2025-07-09 16:06:26,183 [INFO] app.tasks.tasks (tasks.py:120): Task 48b3437a-5c0e-4af7-aa78-2ffbe5dc665c completed successfully
+2025-07-09 16:06:26,183 [INFO] app.tasks.tasks (tasks.py:131): Task 48b3437a-5c0e-4af7-aa78-2ffbe5dc665c completed in 89.53 seconds
+2025-07-09 16:06:27,775 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:06:27] "GET /task/48b3437a-5c0e-4af7-aa78-2ffbe5dc665c HTTP/1.1" 200 -
+2025-07-09 16:06:32,420 [INFO] app.routes.routes (routes.py:156): Download requested for file: test.wav from 127.0.0.1
+2025-07-09 16:06:32,436 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:06:32] "[35m[1mGET /download/test.wav HTTP/1.1[0m" 206 -
+2025-07-09 16:06:35,131 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:06:35] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-07-09 16:06:35,893 [INFO] app.routes.routes (routes.py:156): Download requested for file: test.wav from 127.0.0.1
+2025-07-09 16:06:35,894 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:06:35] "[35m[1mGET /download/test.wav HTTP/1.1[0m" 206 -
+2025-07-09 16:06:36,161 [INFO] app.routes.routes (routes.py:156): Download requested for file: test.wav from 127.0.0.1
+2025-07-09 16:06:36,162 [INFO] werkzeug (_internal.py:97): 127.0.0.1 - - [09/Jul/2025 16:06:36] "[35m[1mGET /download/test.wav HTTP/1.1[0m" 206 -
