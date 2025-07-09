@@ -76,25 +76,7 @@ LOGGING_CONFIG = {
             'level': 'INFO',
             'propagate': True
         },
-        'app': {
-            'handlers': ['console', 'file', 'error_file'],
-            'level': 'INFO',
-            'propagate': False
-        },
-        'app.audio': {
-            'handlers': ['console', 'file', 'error_file'],
-            'level': 'INFO',
-            'propagate': False
-        },
-        'app.tasks': {
-            'handlers': ['console', 'file', 'error_file'],
-            'level': 'INFO',
-            'propagate': False
-        },
-        'app.desktop': {
-            'handlers': ['console', 'file', 'error_file'],
-            'level': 'INFO',
-            'propagate': False
-        },
+        # App-specific loggers inherit from root logger
+        # No need to duplicate handlers
     }
 }

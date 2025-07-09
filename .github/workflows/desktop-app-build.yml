@@ -1,0 +1,118 @@
+name: Build Desktop Application
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [created]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pyinstaller
+          pip install -r requirements.txt
+
+      - name: Build Windows executable
+        run: |
+          pyinstaller hypno-ai.spec
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: hypno-ai-windows
+          path: dist/Hypno-AI
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pyinstaller
+          pip install -r requirements.txt
+
+      - name: Build macOS application
+        run: |
+          pyinstaller hypno-ai.spec
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: hypno-ai-macos
+          path: dist/Hypno-AI.app
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pyinstaller
+          pip install -r requirements.txt
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-glx libegl1-mesa libxrandr2 libxrandr2 libxss1 libxcursor1 libxcomposite1 libasound2 libxi6 libxtst6
+
+      - name: Build Linux executable
+        run: |
+          pyinstaller hypno-ai.spec
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: hypno-ai-linux
+          path: dist/Hypno-AI
+
+  create-release-assets:
+    needs: [build-windows, build-macos, build-linux]
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Create ZIP archives
+        run: |
+          zip -r hypno-ai-windows.zip hypno-ai-windows
+          zip -r hypno-ai-macos.zip hypno-ai-macos
+          zip -r hypno-ai-linux.zip hypno-ai-linux
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            hypno-ai-windows.zip
+            hypno-ai-macos.zip
+            hypno-ai-linux.zip

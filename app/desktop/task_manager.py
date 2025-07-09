@@ -74,6 +74,37 @@ class TaskManager(QObject):
 
         self.logger.info(f"Task thread started for routine '{routine_name}'")
 
+    def _cleanup_temp_file(self, voice_type, voice_path):
+        """
+        Clean up temporary voice file if needed
+
+        Args:
+            voice_type (str): Type of voice (sample or upload)
+            voice_path (str): Path to the voice sample file
+        """
+        if voice_type == 'upload' and os.path.exists(voice_path) and 'temp_' in os.path.basename(voice_path):
+            self.logger.debug(f"Cleaning up temporary voice file: {voice_path}")
+            try:
+                os.remove(voice_path)
+            except Exception as e:
+                self.logger.error(f"Error cleaning up temporary file: {str(e)}")
+
+    def _check_cancellation(self, message):
+        """
+        Check if task cancellation was requested
+
+        Args:
+            message (str): Message to log if cancelled
+
+        Returns:
+            bool: True if task was cancelled, False otherwise
+        """
+        if self.cancel_requested:
+            self.logger.info(message)
+            self.task_failed.emit("Task cancelled")
+            return True
+        return False
+
     def _run_task(self, text, language, voice_path, routine_name, routine_id=None, voice_type=None, voice_id=None):
         """
         Run the audio generation task in a background thread
@@ -94,9 +125,7 @@ class TaskManager(QObject):
             self.task_progress.emit(20, "Preparing to generate audio...")
 
             # Check for cancellation
-            if self.cancel_requested:
-                self.logger.info("Task cancelled before audio generation")
-                self.task_failed.emit("Task cancelled")
+            if self._check_cancellation("Task cancelled before audio generation"):
                 return
 
             # Generate the audio file
@@ -119,18 +148,11 @@ class TaskManager(QObject):
             self.task_progress.emit(70, "Audio generation completed. Saving routine...")
 
             # Check for cancellation
-            if self.cancel_requested:
-                self.logger.info("Task cancelled after audio generation")
-                self.task_failed.emit("Task cancelled")
+            if self._check_cancellation("Task cancelled after audio generation"):
                 return
 
             # Clean up temporary uploaded file if needed
-            if voice_type == 'upload' and os.path.exists(voice_path) and 'temp_' in os.path.basename(voice_path):
-                self.logger.debug(f"Cleaning up temporary voice file: {voice_path}")
-                try:
-                    os.remove(voice_path)
-                except Exception as e:
-                    self.logger.error(f"Error cleaning up temporary file: {str(e)}")
+            self._cleanup_temp_file(voice_type, voice_path)
 
             # Store or update the routine
             if routine_id and get_routine(routine_id):
@@ -163,9 +185,7 @@ class TaskManager(QObject):
             self.task_progress.emit(90, "Finalizing...")
 
             # Check for cancellation
-            if self.cancel_requested:
-                self.logger.info("Task cancelled after routine save")
-                self.task_failed.emit("Task cancelled")
+            if self._check_cancellation("Task cancelled after routine save"):
                 return
 
             # Prepare result
@@ -186,12 +206,7 @@ class TaskManager(QObject):
             self.logger.error(f"Error in task: {str(e)}", exc_info=True)
 
             # Clean up temporary uploaded file if needed
-            if voice_type == 'upload' and os.path.exists(voice_path) and 'temp_' in os.path.basename(voice_path):
-                self.logger.debug(f"Cleaning up temporary voice file after error: {voice_path}")
-                try:
-                    os.remove(voice_path)
-                except Exception as cleanup_error:
-                    self.logger.error(f"Error cleaning up temporary file: {str(cleanup_error)}")
+            self._cleanup_temp_file(voice_type, voice_path)
 
             # Emit the task failed signal
             self.task_failed.emit(str(e))

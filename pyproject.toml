@@ -16,6 +16,7 @@ dependencies = [
     "PyQt6-Qt6==6.6.1",
     "PyQt6-sip==13.6.0",
     "pyinstaller==6.1.0",
+    "alembic==1.12.1",
 ]
 
 [project.optional-dependencies]
