@@ -143,7 +143,6 @@ class RoutineEditorWidget(QWidget):
 
         # Generate button
         self.generate_button = QPushButton("Generate Hypnosis Audio")
-        self.generate_button.setMinimumHeight(40)
         self.generate_button.clicked.connect(self.on_generate_clicked)
         button_layout.addWidget(self.generate_button)
 

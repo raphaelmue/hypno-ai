@@ -367,3 +367,26 @@ NameError: name 'segment_files' is not defined
 2025-07-09 18:52:34,196 [INFO] app.desktop.routine_editor (routine_editor.py:236): Loading routine: 7fb5d961-1211-469a-ba60-01ca166e79d4
 2025-07-09 18:52:34,198 [INFO] app.desktop.routine_editor (routine_editor.py:413): Audio file loaded: C:\Users\D070307\workspace\hypno-ai\app\static\output\test2.wav
 2025-07-09 18:52:34,198 [INFO] app.desktop.routine_editor (routine_editor.py:277): Routine loaded: 7fb5d961-1211-469a-ba60-01ca166e79d4
+2025-07-09 18:52:48,221 [INFO] app.desktop.routines_list (routines_list.py:221): Routine selected: 9ffea1e3-8620-462c-9414-74e28ff9f206
+2025-07-09 18:52:48,221 [INFO] app.desktop.main_window (main_window.py:193): Routine selected: 9ffea1e3-8620-462c-9414-74e28ff9f206
+2025-07-09 18:52:48,221 [INFO] app.desktop.main_window (main_window.py:140): Editing routine: 9ffea1e3-8620-462c-9414-74e28ff9f206
+2025-07-09 18:52:48,221 [INFO] app.desktop.routine_editor (routine_editor.py:236): Loading routine: 9ffea1e3-8620-462c-9414-74e28ff9f206
+2025-07-09 18:52:48,223 [INFO] app.desktop.routine_editor (routine_editor.py:413): Audio file loaded: C:\Users\D070307\workspace\hypno-ai\app\static\output\test.wav
+2025-07-09 18:52:48,223 [INFO] app.desktop.routine_editor (routine_editor.py:277): Routine loaded: 9ffea1e3-8620-462c-9414-74e28ff9f206
+2025-07-09 18:52:48,319 [INFO] app.desktop.routines_list (routines_list.py:237): Routine selected from table click: 9ffea1e3-8620-462c-9414-74e28ff9f206
+2025-07-09 18:52:48,319 [INFO] app.desktop.main_window (main_window.py:193): Routine selected: 9ffea1e3-8620-462c-9414-74e28ff9f206
+2025-07-09 18:52:48,320 [INFO] app.desktop.main_window (main_window.py:140): Editing routine: 9ffea1e3-8620-462c-9414-74e28ff9f206
+2025-07-09 18:52:48,320 [INFO] app.desktop.routine_editor (routine_editor.py:236): Loading routine: 9ffea1e3-8620-462c-9414-74e28ff9f206
+2025-07-09 18:52:48,321 [INFO] app.desktop.routine_editor (routine_editor.py:413): Audio file loaded: C:\Users\D070307\workspace\hypno-ai\app\static\output\test.wav
+2025-07-09 18:52:48,321 [INFO] app.desktop.routine_editor (routine_editor.py:277): Routine loaded: 9ffea1e3-8620-462c-9414-74e28ff9f206
+2025-07-09 18:55:26,613 [INFO] app (__init__.py:8): Initializing Hypno-AI application
+2025-07-09 18:55:27,907 [INFO] app (__init__.py:8): Initializing Hypno-AI application
+2025-07-09 18:55:36,525 [INFO] app.desktop.main_window (main_window.py:22): Initializing MainWindow
+2025-07-09 18:55:36,540 [INFO] app.desktop.routines_list (routines_list.py:26): Initializing RoutinesListWidget
+2025-07-09 18:55:36,547 [INFO] app.desktop.routines_list (routines_list.py:78): Refreshing routines list
+2025-07-09 18:55:36,548 [INFO] app.desktop.routines_list (routines_list.py:150): Loaded 2 routines into table
+2025-07-09 18:55:36,548 [INFO] app.desktop.routines_list (routines_list.py:40): RoutinesListWidget initialized
+2025-07-09 18:55:36,549 [INFO] app.desktop.routine_editor (routine_editor.py:32): Initializing RoutineEditorWidget
+2025-07-09 18:55:36,549 [INFO] app.desktop.task_manager (task_manager.py:27): Initializing TaskManager
+2025-07-09 18:55:36,549 [INFO] app.desktop.task_manager (task_manager.py:33): TaskManager initialized
+2025-07-09 18:55:37,563 [INFO] app.desktop.routine_editor (routine_editor.py:61): RoutineEditorWidget initialized

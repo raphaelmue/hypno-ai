@@ -43,12 +43,6 @@ class RoutinesListWidget(QWidget):
         """Set up the button bar at the top of the widget"""
         button_layout = QHBoxLayout()
 
-        # Create New Routine button
-        self.new_button = QPushButton("Create New Routine")
-        self.new_button.setMinimumHeight(40)
-        self.new_button.clicked.connect(self.on_new_clicked)
-        button_layout.addWidget(self.new_button)
-
         # Add spacer to push button to the right
         button_layout.addStretch()
 
