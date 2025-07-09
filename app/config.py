@@ -14,13 +14,12 @@ except (ValueError, TypeError):
     print(f"Warning: Invalid value for AUDIO_GENERATION_THREADS environment variable. Using default value of {DEFAULT_AUDIO_THREADS}.")
     AUDIO_GENERATION_THREADS = DEFAULT_AUDIO_THREADS
 
-# Flask app configuration
-# Use absolute paths for Docker/Gunicorn compatibility
+# Application configuration
+# Use absolute paths for compatibility
 BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'app', 'static', 'voices')
 OUTPUT_FOLDER = os.path.join(BASE_DIR, 'app', 'static', 'output')
 ALLOWED_EXTENSIONS = {'wav', 'mp3', 'ogg'}
-MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max upload size
 
 # Ensure directories exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -104,7 +103,7 @@ LOGGING_CONFIG = {
             'level': 'INFO',
             'propagate': False
         },
-        'app.routes': {
+        'app.desktop': {
             'handlers': ['console', 'file', 'error_file'],
             'level': 'INFO',
             'propagate': False

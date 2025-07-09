@@ -1,6 +1,6 @@
 # Hypnosis Audio Generator
 
-A web application that generates hypnosis audio from text using XTTS-v2 text-to-speech technology.
+A desktop application that generates hypnosis audio from text using XTTS-v2 text-to-speech technology.
 
 ## Features
 
@@ -10,14 +10,15 @@ A web application that generates hypnosis audio from text using XTTS-v2 text-to-
 - Load and regenerate existing routines
 - Select from multiple languages
 - Use sample voices or upload your own reference voice
-- Download generated audio files
+- Play and save generated audio files
+- Cross-platform support (Windows, macOS, Linux)
 
 ## Requirements
 
 - Python 3.8+
 - PyTorch
 - TTS (Text-to-Speech) library with XTTS-v2 support
-- Flask
+- PyQt5 for the desktop UI
 
 ## Installation
 
@@ -47,73 +48,50 @@ A web application that generates hypnosis audio from text using XTTS-v2 text-to-
 
 ## Usage
 
-### Running Locally
+### Running the Application
 
-1. Start the Flask application:
+1. Start the desktop application:
    ```
-   python run.py
-   ```
-
-2. Open your web browser and navigate to:
-   ```
-   http://127.0.0.1:5000
+   python main.py
    ```
 
-3. Enter your hypnosis script, select a language, and choose a voice.
+2. The application window will open, showing the list of saved routines.
 
-4. Click "Generate Hypnosis Audio" and wait for the processing to complete.
+3. Click "Create New Routine" to create a new hypnosis routine.
 
-5. Once complete, you can preview and download the generated audio file.
+4. Enter your hypnosis script, select a language, and choose a voice.
 
-### Docker Deployment
+5. Click "Generate Hypnosis Audio" and wait for the processing to complete.
 
-#### Running with Docker
+6. Once complete, you can play the audio or save it to your device.
 
-1. Build the Docker image:
-   ```
-   docker build -t hypno-ai .
-   ```
+### Building Standalone Executables
 
-2. Run the container (it uses Gunicorn for production):
-   ```
-   docker run -p 5000:5000 hypno-ai
-   ```
+You can build standalone executables for Windows, macOS, and Linux using PyInstaller:
 
-3. Access the application at `http://localhost:5000`
+#### Windows
 
-#### Running with Docker Compose
+```
+pyinstaller hypno-ai.spec
+```
 
-1. Start the application using Docker Compose:
-   ```
-   docker-compose up -d
-   ```
+The executable will be created in the `dist/Hypno-AI` directory.
 
-   The container runs the Flask app with Gunicorn.
+#### macOS
 
-2. Access the application at `http://localhost:5000`
+```
+pyinstaller hypno-ai.spec
+```
 
-3. Stop the application:
-   ```
-   docker-compose down
-   ```
+The application bundle will be created as `dist/Hypno-AI.app`.
 
-### GitHub Actions CI/CD
+#### Linux
 
-This project includes a GitHub Actions workflow that automatically builds and publishes a Docker image to GitHub Container Registry (GHCR) when changes are pushed to the main branch.
+```
+pyinstaller hypno-ai.spec
+```
 
-To use the published image:
-
-1. Pull the latest image:
-   ```
-   docker pull ghcr.io/yourusername/hypno-ai:latest
-   ```
-
-2. Run the container:
-   ```
-   docker run -p 5000:5000 ghcr.io/yourusername/hypno-ai:latest
-   ```
-
-Note: Replace `yourusername` with your actual GitHub username.
+The executable will be created in the `dist/Hypno-AI` directory.
 
 ## Notes on XTTS-v2
 
