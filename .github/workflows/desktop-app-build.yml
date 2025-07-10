@@ -32,7 +32,7 @@ jobs:
           pyinstaller hypno-ai.spec
 
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: hypno-ai-windows
           path: dist/Hypno-AI
@@ -60,7 +60,7 @@ jobs:
           pyinstaller hypno-ai.spec
 
       - name: Upload macOS artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: hypno-ai-macos
           path: dist/Hypno-AI.app
@@ -90,7 +90,7 @@ jobs:
           pyinstaller hypno-ai.spec
 
       - name: Upload Linux artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: hypno-ai-linux
           path: dist/Hypno-AI
