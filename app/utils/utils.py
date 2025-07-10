@@ -1,6 +1,9 @@
-from app.config import ALLOWED_EXTENSIONS
 import re
+
 import unicodedata
+
+from app.config import ALLOWED_EXTENSIONS
+
 
 def allowed_file(filename):
     """Check if the uploaded file has an allowed extension"""

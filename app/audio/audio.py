@@ -1,11 +1,10 @@
-import os
-import tempfile
-import uuid
-import threading
-import queue
-import concurrent.futures
 import logging
+import os
+import queue
+import tempfile
+import threading
 import time
+import uuid
 
 from TTS.api import TTS
 from pydub import AudioSegment
@@ -245,7 +244,7 @@ class AudioGenerator:
             self.logger.warning("No valid audio segments to combine")
             return False
 
-    def generate(self, text, language, voice_path, routine_name=None):
+    def generate(self, text, language, voice_path, routine_name=None, progress_callback=None):
         """
         Generate audio from text using multi-threading.
 
@@ -254,6 +253,7 @@ class AudioGenerator:
             language (str): Language code
             voice_path (str): Path to the voice sample file
             routine_name (str, optional): Name of the routine
+            progress_callback (callable, optional): Callback function for progress updates
 
         Returns:
             str: Filename of the generated audio
@@ -306,15 +306,41 @@ class AudioGenerator:
                     threads.append(thread)
                     self.logger.debug(f"Started worker thread {i+1}/{thread_count}")
 
-                # Wait for all tasks to be processed
+                # Wait for all tasks to be processed and track progress
                 self.logger.debug("Waiting for all tasks to be processed")
+                total_segments = len(segments)
+                processed_segments = 0
+                segment_files = []
+
+                # Monitor the result queue for progress updates
+                while processed_segments < total_segments:
+                    # Check if any new results are available
+                    if not result_queue.empty():
+                        # Get the result and increment the counter
+                        segment_files.append(result_queue.get())
+                        processed_segments += 1
+
+                        # Report progress if callback is provided
+                        if progress_callback:
+                            progress_percent = int(30 + (processed_segments / total_segments * 40))
+                            progress_callback(progress_percent, f"Processing segments: {processed_segments} / {total_segments}")
+                            self.logger.debug(f"Progress update: {processed_segments}/{total_segments} segments processed")
+
+                    # Small sleep to prevent CPU spinning
+                    time.sleep(0.1)
+
+                    # Check if all work is done
+                    if work_queue.empty() and processed_segments >= total_segments:
+                        break
+
+                # Ensure all tasks are marked as done
                 work_queue.join()
                 self.logger.info("All worker threads have completed their tasks")
 
-                # Collect results
-                segment_files = []
+                # Make sure we've collected all results
                 while not result_queue.empty():
                     segment_files.append(result_queue.get())
+
                 self.logger.info(f"Collected {len(segment_files)} processed segments from result queue")
 
                 # Combine audio segments
@@ -341,14 +367,14 @@ class AudioGenerator:
             raise
 
 
-def generate_audio(text, language, voice_path, routine_name=None, num_threads=AUDIO_GENERATION_THREADS):
+def generate_audio(text, language, voice_path, routine_name=None, num_threads=AUDIO_GENERATION_THREADS, progress_callback=None):
     """Generate audio using XTTS-v2 with support for [break] markers and line breaks"""
     logger = logging.getLogger(__name__)
     logger.info(f"generate_audio called with language={language}, routine_name={routine_name}, num_threads={num_threads}")
 
     try:
         generator = AudioGenerator(num_threads=num_threads)
-        result = generator.generate(text, language, voice_path, routine_name)
+        result = generator.generate(text, language, voice_path, routine_name, progress_callback)
         logger.info(f"generate_audio completed successfully, generated file: {result}")
         return result
     except Exception as e:

@@ -1,34 +1,29 @@
 import os
-import logging.config
+import sys
 
-# Default values
-DEFAULT_AUDIO_THREADS = 4
+from app.models.settings import settings
 
-# Environment variables
-try:
-    AUDIO_GENERATION_THREADS = int(os.environ.get('AUDIO_GENERATION_THREADS', DEFAULT_AUDIO_THREADS))
-    # Ensure at least 1 thread
-    AUDIO_GENERATION_THREADS = max(1, AUDIO_GENERATION_THREADS)
-except (ValueError, TypeError):
-    # If the environment variable is not a valid integer, use the default value
-    print(f"Warning: Invalid value for AUDIO_GENERATION_THREADS environment variable. Using default value of {DEFAULT_AUDIO_THREADS}.")
-    AUDIO_GENERATION_THREADS = DEFAULT_AUDIO_THREADS
-
-# Flask app configuration
-# Use absolute paths for Docker/Gunicorn compatibility
+# Application configuration
+# Use absolute paths for compatibility
 BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-UPLOAD_FOLDER = os.path.join(BASE_DIR, 'app', 'static', 'voices')
-OUTPUT_FOLDER = os.path.join(BASE_DIR, 'app', 'static', 'output')
+
+# Get settings from the settings singleton
+DATA_DIR = settings.get_data_dir()
+OUTPUT_FOLDER = settings.get_output_folder()
+AUDIO_GENERATION_THREADS = settings.get('audio_threads', 4)
 ALLOWED_EXTENSIONS = {'wav', 'mp3', 'ogg'}
-MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max upload size
 
-# Ensure directories exist
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+# Define paths for voices
+# Built-in voices are packaged with the app
+BUILTIN_VOICES_FOLDER = os.path.join(BASE_DIR, 'app', 'static', 'voices')
+# User voices are stored in ~/voices/
+USER_VOICES_FOLDER = os.path.join(os.path.expanduser("~"), 'voices')
+# Ensure user voices directory exists
+os.makedirs(USER_VOICES_FOLDER, exist_ok=True)
 
-# Sample voices (these would be pre-loaded)
+# Sample voices (built-in, pre-loaded)
 SAMPLE_VOICES = {
-    'male1': {'name': 'Male Voice 1', 'path': os.path.join(UPLOAD_FOLDER, 'de-male-calm.mp3')}
+    'male1': {'name': 'Male Voice 1', 'path': os.path.join(BUILTIN_VOICES_FOLDER, 'de-male-calm.mp3')}
 }
 
 # Available languages
@@ -89,25 +84,7 @@ LOGGING_CONFIG = {
             'level': 'INFO',
             'propagate': True
         },
-        'app': {
-            'handlers': ['console', 'file', 'error_file'],
-            'level': 'INFO',
-            'propagate': False
-        },
-        'app.audio': {
-            'handlers': ['console', 'file', 'error_file'],
-            'level': 'INFO',
-            'propagate': False
-        },
-        'app.tasks': {
-            'handlers': ['console', 'file', 'error_file'],
-            'level': 'INFO',
-            'propagate': False
-        },
-        'app.routes': {
-            'handlers': ['console', 'file', 'error_file'],
-            'level': 'INFO',
-            'propagate': False
-        },
+        # App-specific loggers inherit from root logger
+        # No need to duplicate handlers
     }
 }

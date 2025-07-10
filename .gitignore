@@ -45,3 +45,5 @@ docker-compose.override.yml
 *.env
 
 routines.json
+
+logs/
