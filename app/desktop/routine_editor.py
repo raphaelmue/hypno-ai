@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QApplication
 )
 
-from app.config import LANGUAGES, SAMPLE_VOICES, OUTPUT_FOLDER
+from app.config import LANGUAGES, SAMPLE_VOICES, OUTPUT_FOLDER, USER_VOICES_FOLDER
 from app.desktop.task_manager import TaskManager
 from app.models.routine import get_routine
 from app.utils import allowed_file
@@ -293,6 +293,8 @@ class RoutineEditorWidget(QWidget):
         file_dialog = QFileDialog()
         file_dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
         file_dialog.setNameFilter("Audio Files (*.wav *.mp3 *.ogg)")
+        # Set the default directory to the user voices folder
+        file_dialog.setDirectory(USER_VOICES_FOLDER)
 
         if file_dialog.exec_():
             file_paths = file_dialog.selectedFiles()

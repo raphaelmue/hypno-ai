@@ -15,9 +15,8 @@ is_linux = sys.platform.startswith('linux')
 
 # Common data files
 datas = [
+    # Built-in voices that are packaged with the application
     (fix_path('app/static/voices'), fix_path('app/static/voices')),
-    (fix_path('app/static/output'), fix_path('app/static/output')),
-    (fix_path('app/data'), fix_path('app/data')),
 ]
 
 a = Analysis(

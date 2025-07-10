@@ -1,4 +1,5 @@
 import os
+import sys
 
 from app.models.settings import settings
 
@@ -8,14 +9,21 @@ BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 
 # Get settings from the settings singleton
 DATA_DIR = settings.get_data_dir()
-UPLOAD_FOLDER = settings.get_upload_folder()
 OUTPUT_FOLDER = settings.get_output_folder()
 AUDIO_GENERATION_THREADS = settings.get('audio_threads', 4)
 ALLOWED_EXTENSIONS = {'wav', 'mp3', 'ogg'}
 
-# Sample voices (these would be pre-loaded)
+# Define paths for voices
+# Built-in voices are packaged with the app
+BUILTIN_VOICES_FOLDER = os.path.join(BASE_DIR, 'app', 'static', 'voices')
+# User voices are stored in ~/voices/
+USER_VOICES_FOLDER = os.path.join(os.path.expanduser("~"), 'voices')
+# Ensure user voices directory exists
+os.makedirs(USER_VOICES_FOLDER, exist_ok=True)
+
+# Sample voices (built-in, pre-loaded)
 SAMPLE_VOICES = {
-    'male1': {'name': 'Male Voice 1', 'path': os.path.join(UPLOAD_FOLDER, 'de-male-calm.mp3')}
+    'male1': {'name': 'Male Voice 1', 'path': os.path.join(BUILTIN_VOICES_FOLDER, 'de-male-calm.mp3')}
 }
 
 # Available languages
