@@ -1,8 +1,17 @@
 # -*- mode: python ; coding: utf-8 -*-
 import sys
 import os
+import site
+from pathlib import Path
+import importlib.util
 
 block_cipher = None
+
+# Create a directory for gruut VERSION file if needed
+gruut_version_dir = os.path.join('build', 'temp', 'gruut')
+os.makedirs(gruut_version_dir, exist_ok=True)
+with open(os.path.join(gruut_version_dir, 'VERSION'), 'w') as f:
+    f.write('0.0.0')  # Placeholder version
 
 # Fix path separators for cross-platform compatibility
 def fix_path(path):
@@ -13,11 +22,73 @@ is_windows = sys.platform.startswith('win')
 is_mac = sys.platform.startswith('darwin')
 is_linux = sys.platform.startswith('linux')
 
+# Find the TTS package location
+def find_tts_package():
+    # Try to find TTS using importlib
+    tts_spec = importlib.util.find_spec('TTS')
+    if tts_spec and tts_spec.origin:
+        # Get the directory containing the TTS package
+        tts_dir = os.path.dirname(os.path.dirname(tts_spec.origin))
+        return os.path.join(tts_dir, 'TTS')
+
+    # Fallback to site-packages
+    for site_dir in site.getsitepackages():
+        tts_path = os.path.join(site_dir, 'TTS')
+        if os.path.exists(tts_path):
+            return tts_path
+
+    # Check for virtual environment
+    if hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
+        venv_site_packages = os.path.join(sys.prefix, 'lib', 'python{}.{}'.format(
+            sys.version_info.major, sys.version_info.minor), 'site-packages')
+        tts_path = os.path.join(venv_site_packages, 'TTS')
+        if os.path.exists(tts_path):
+            return tts_path
+
+        # Windows-specific path
+        if is_windows:
+            venv_site_packages = os.path.join(sys.prefix, 'Lib', 'site-packages')
+            tts_path = os.path.join(venv_site_packages, 'TTS')
+            if os.path.exists(tts_path):
+                return tts_path
+
+    # Last resort: try current directory
+    local_tts = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'TTS')
+    if os.path.exists(local_tts):
+        return local_tts
+
+    # If all else fails, return a default path and let PyInstaller handle the error
+    return os.path.join(site.getsitepackages()[0], 'TTS')
+
+tts_path = find_tts_package()
+
 # Common data files
 datas = [
     # Built-in voices that are packaged with the application
     (fix_path('app/static/voices'), fix_path('app/static/voices')),
+    # Add gruut VERSION file
+    (os.path.join(gruut_version_dir, 'VERSION'), 'gruut'),
 ]
+
+# Add TTS vocoder directories if they exist
+tts_vocoder_dirs = [
+    ('configs', os.path.join('TTS', 'vocoder', 'configs')),
+    ('models', os.path.join('TTS', 'vocoder', 'models')),
+    ('utils', os.path.join('TTS', 'vocoder', 'utils')),
+    ('datasets', os.path.join('TTS', 'vocoder', 'datasets')),
+    ('layers', os.path.join('TTS', 'vocoder', 'layers')),
+]
+
+for dir_name, dest_path in tts_vocoder_dirs:
+    src_path = os.path.join(tts_path, 'vocoder', dir_name)
+    if os.path.exists(src_path):
+        print(f"Adding TTS vocoder directory: {src_path}")
+        datas.append((src_path, dest_path))
+    else:
+        print(f"Warning: TTS vocoder directory not found: {src_path}")
+        # Create an empty directory to satisfy PyInstaller
+        os.makedirs(os.path.join('build', 'temp', dest_path), exist_ok=True)
+        datas.append((os.path.join('build', 'temp', dest_path), dest_path))
 
 a = Analysis(
     ['main.py'],
@@ -47,10 +118,23 @@ a = Analysis(
         'PyQt6.QtWidgets',
         'PyQt6.QtMultimedia',
         'alembic',
+        'inflect',
+        'inflect.compat',
+        'inflect.compat.py38',
+        'gruut',
+        'gruut.const',
+        'gruut.g2p',
+        'gruut.lang',
+        'gruut.phonemize',
+        'gruut.pos',
+        'gruut.resources',
+        'gruut.text_processor',
+        'gruut.utils',
+        'gruut_ipa',
     ],
-    hookspath=[],
+    hookspath=['build/hooks'],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=['build/hooks/runtime_hook.py'],
     excludes=[],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,

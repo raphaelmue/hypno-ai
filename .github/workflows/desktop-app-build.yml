@@ -27,6 +27,99 @@ jobs:
           pip install pyinstaller
           pip install -r requirements.txt
 
+      - name: Create required directories
+        run: |
+          mkdir -p app\static\voices app\static\output app\data
+          mkdir -p build\temp\TTS\vocoder\configs build\temp\TTS\vocoder\models build\temp\TTS\vocoder\utils build\temp\TTS\vocoder\datasets build\temp\TTS\vocoder\layers
+          mkdir -p build\temp\gruut
+          mkdir -p build\hooks
+
+          # Create placeholder VERSION file for gruut
+          echo "0.0.0" > build\temp\gruut\VERSION
+
+      - name: Create PyInstaller hooks
+        run: |
+          echo "# PyInstaller hook for inflect module" > build\hooks\hook-inflect.py
+          echo "from PyInstaller.utils.hooks import collect_all" >> build\hooks\hook-inflect.py
+          echo "" >> build\hooks\hook-inflect.py
+          echo "# Collect all package data, submodules, etc." >> build\hooks\hook-inflect.py
+          echo "datas, binaries, hiddenimports = collect_all('inflect')" >> build\hooks\hook-inflect.py
+
+          echo "# PyInstaller hook for gruut module" > build\hooks\hook-gruut.py
+          echo "from PyInstaller.utils.hooks import collect_all, copy_metadata" >> build\hooks\hook-gruut.py
+          echo "" >> build\hooks\hook-gruut.py
+          echo "# Collect all package data, submodules, etc." >> build\hooks\hook-gruut.py
+          echo "datas, binaries, hiddenimports = collect_all('gruut')" >> build\hooks\hook-gruut.py
+          echo "" >> build\hooks\hook-gruut.py
+          echo "# Add metadata including VERSION file" >> build\hooks\hook-gruut.py
+          echo "datas += copy_metadata('gruut')" >> build\hooks\hook-gruut.py
+          echo "" >> build\hooks\hook-gruut.py
+          echo "# Add gruut_ipa as a hidden import" >> build\hooks\hook-gruut.py
+          echo "hiddenimports += ['gruut_ipa']" >> build\hooks\hook-gruut.py
+
+          echo "# PyInstaller runtime hook to patch inspect.getsource" > build\hooks\runtime_hook.py
+          echo "import inspect" >> build\hooks\runtime_hook.py
+          echo "import sys" >> build\hooks\runtime_hook.py
+          echo "import types" >> build\hooks\runtime_hook.py
+          echo "import functools" >> build\hooks\runtime_hook.py
+          echo "" >> build\hooks\runtime_hook.py
+          echo "# Store the original getsource function" >> build\hooks\runtime_hook.py
+          echo "original_getsource = inspect.getsource" >> build\hooks\runtime_hook.py
+          echo "" >> build\hooks\runtime_hook.py
+          echo "# Define a patched version that handles the case when source code can't be found" >> build\hooks\runtime_hook.py
+          echo "@functools.wraps(original_getsource)" >> build\hooks\runtime_hook.py
+          echo "def patched_getsource(object):" >> build\hooks\runtime_hook.py
+          echo "    try:" >> build\hooks\runtime_hook.py
+          echo "        return original_getsource(object)" >> build\hooks\runtime_hook.py
+          echo "    except (IOError, OSError, TypeError):" >> build\hooks\runtime_hook.py
+          echo "        # Return a dummy source string when the real source can't be found" >> build\hooks\runtime_hook.py
+          echo "        if isinstance(object, types.FunctionType):" >> build\hooks\runtime_hook.py
+          echo "            return f\"def {object.__name__}(*args, **kwargs): pass  # Source not available\"" >> build\hooks\runtime_hook.py
+          echo "        elif isinstance(object, type):" >> build\hooks\runtime_hook.py
+          echo "            return f\"class {object.__name__}: pass  # Source not available\"" >> build\hooks\runtime_hook.py
+          echo "        else:" >> build\hooks\runtime_hook.py
+          echo "            return \"# Source not available\"" >> build\hooks\runtime_hook.py
+          echo "" >> build\hooks\runtime_hook.py
+          echo "# Replace the original function with our patched version" >> build\hooks\runtime_hook.py
+          echo "inspect.getsource = patched_getsource" >> build\hooks\runtime_hook.py
+          echo "" >> build\hooks\runtime_hook.py
+          echo "# Also patch getsourcelines which is used by getsource" >> build\hooks\runtime_hook.py
+          echo "original_getsourcelines = inspect.getsourcelines" >> build\hooks\runtime_hook.py
+          echo "" >> build\hooks\runtime_hook.py
+          echo "@functools.wraps(original_getsourcelines)" >> build\hooks\runtime_hook.py
+          echo "def patched_getsourcelines(object):" >> build\hooks\runtime_hook.py
+          echo "    try:" >> build\hooks\runtime_hook.py
+          echo "        return original_getsourcelines(object)" >> build\hooks\runtime_hook.py
+          echo "    except (IOError, OSError, TypeError):" >> build\hooks\runtime_hook.py
+          echo "        # Return dummy source lines" >> build\hooks\runtime_hook.py
+          echo "        if isinstance(object, types.FunctionType):" >> build\hooks\runtime_hook.py
+          echo "            dummy_source = f\"def {object.__name__}(*args, **kwargs): pass  # Source not available\"" >> build\hooks\runtime_hook.py
+          echo "        elif isinstance(object, type):" >> build\hooks\runtime_hook.py
+          echo "            dummy_source = f\"class {object.__name__}: pass  # Source not available\"" >> build\hooks\runtime_hook.py
+          echo "        else:" >> build\hooks\runtime_hook.py
+          echo "            dummy_source = \"# Source not available\"" >> build\hooks\runtime_hook.py
+          echo "        return ([dummy_source], 1)" >> build\hooks\runtime_hook.py
+          echo "" >> build\hooks\runtime_hook.py
+          echo "# Replace the original function with our patched version" >> build\hooks\runtime_hook.py
+          echo "inspect.getsourcelines = patched_getsourcelines" >> build\hooks\runtime_hook.py
+          echo "" >> build\hooks\runtime_hook.py
+          echo "# Also patch findsource which is used by getsourcelines" >> build\hooks\runtime_hook.py
+          echo "original_findsource = inspect.findsource" >> build\hooks\runtime_hook.py
+          echo "" >> build\hooks\runtime_hook.py
+          echo "@functools.wraps(original_findsource)" >> build\hooks\runtime_hook.py
+          echo "def patched_findsource(object):" >> build\hooks\runtime_hook.py
+          echo "    try:" >> build\hooks\runtime_hook.py
+          echo "        return original_findsource(object)" >> build\hooks\runtime_hook.py
+          echo "    except (IOError, OSError, TypeError):" >> build\hooks\runtime_hook.py
+          echo "        # Return dummy source lines" >> build\hooks\runtime_hook.py
+          echo "        dummy_source = \"# Source not available\"" >> build\hooks\runtime_hook.py
+          echo "        return ([dummy_source], 0)" >> build\hooks\runtime_hook.py
+          echo "" >> build\hooks\runtime_hook.py
+          echo "# Replace the original function with our patched version" >> build\hooks\runtime_hook.py
+          echo "inspect.findsource = patched_findsource" >> build\hooks\runtime_hook.py
+          echo "" >> build\hooks\runtime_hook.py
+          echo "print(\"Runtime hook: Patched inspect.getsource and related functions\")" >> build\hooks\runtime_hook.py
+
       - name: Build Windows executable
         run: |
           pyinstaller hypno-ai.spec
@@ -54,6 +147,99 @@ jobs:
           pip install -e .
           pip install pyinstaller
           pip install -r requirements.txt
+
+      - name: Create required directories
+        run: |
+          mkdir -p app/static/voices app/static/output app/data
+          mkdir -p build/temp/TTS/vocoder/configs build/temp/TTS/vocoder/models build/temp/TTS/vocoder/utils build/temp/TTS/vocoder/datasets build/temp/TTS/vocoder/layers
+          mkdir -p build/temp/gruut
+          mkdir -p build/hooks
+
+          # Create placeholder VERSION file for gruut
+          echo "0.0.0" > build/temp/gruut/VERSION
+
+      - name: Create PyInstaller hooks
+        run: |
+          echo "# PyInstaller hook for inflect module" > build/hooks/hook-inflect.py
+          echo "from PyInstaller.utils.hooks import collect_all" >> build/hooks/hook-inflect.py
+          echo "" >> build/hooks/hook-inflect.py
+          echo "# Collect all package data, submodules, etc." >> build/hooks/hook-inflect.py
+          echo "datas, binaries, hiddenimports = collect_all('inflect')" >> build/hooks/hook-inflect.py
+
+          echo "# PyInstaller hook for gruut module" > build/hooks/hook-gruut.py
+          echo "from PyInstaller.utils.hooks import collect_all, copy_metadata" >> build/hooks/hook-gruut.py
+          echo "" >> build/hooks/hook-gruut.py
+          echo "# Collect all package data, submodules, etc." >> build/hooks/hook-gruut.py
+          echo "datas, binaries, hiddenimports = collect_all('gruut')" >> build/hooks/hook-gruut.py
+          echo "" >> build/hooks/hook-gruut.py
+          echo "# Add metadata including VERSION file" >> build/hooks/hook-gruut.py
+          echo "datas += copy_metadata('gruut')" >> build/hooks/hook-gruut.py
+          echo "" >> build/hooks/hook-gruut.py
+          echo "# Add gruut_ipa as a hidden import" >> build/hooks/hook-gruut.py
+          echo "hiddenimports += ['gruut_ipa']" >> build/hooks/hook-gruut.py
+
+          echo "# PyInstaller runtime hook to patch inspect.getsource" > build/hooks/runtime_hook.py
+          echo "import inspect" >> build/hooks/runtime_hook.py
+          echo "import sys" >> build/hooks/runtime_hook.py
+          echo "import types" >> build/hooks/runtime_hook.py
+          echo "import functools" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "# Store the original getsource function" >> build/hooks/runtime_hook.py
+          echo "original_getsource = inspect.getsource" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "# Define a patched version that handles the case when source code can't be found" >> build/hooks/runtime_hook.py
+          echo "@functools.wraps(original_getsource)" >> build/hooks/runtime_hook.py
+          echo "def patched_getsource(object):" >> build/hooks/runtime_hook.py
+          echo "    try:" >> build/hooks/runtime_hook.py
+          echo "        return original_getsource(object)" >> build/hooks/runtime_hook.py
+          echo "    except (IOError, OSError, TypeError):" >> build/hooks/runtime_hook.py
+          echo "        # Return a dummy source string when the real source can't be found" >> build/hooks/runtime_hook.py
+          echo "        if isinstance(object, types.FunctionType):" >> build/hooks/runtime_hook.py
+          echo "            return f\"def {object.__name__}(*args, **kwargs): pass  # Source not available\"" >> build/hooks/runtime_hook.py
+          echo "        elif isinstance(object, type):" >> build/hooks/runtime_hook.py
+          echo "            return f\"class {object.__name__}: pass  # Source not available\"" >> build/hooks/runtime_hook.py
+          echo "        else:" >> build/hooks/runtime_hook.py
+          echo "            return \"# Source not available\"" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "# Replace the original function with our patched version" >> build/hooks/runtime_hook.py
+          echo "inspect.getsource = patched_getsource" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "# Also patch getsourcelines which is used by getsource" >> build/hooks/runtime_hook.py
+          echo "original_getsourcelines = inspect.getsourcelines" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "@functools.wraps(original_getsourcelines)" >> build/hooks/runtime_hook.py
+          echo "def patched_getsourcelines(object):" >> build/hooks/runtime_hook.py
+          echo "    try:" >> build/hooks/runtime_hook.py
+          echo "        return original_getsourcelines(object)" >> build/hooks/runtime_hook.py
+          echo "    except (IOError, OSError, TypeError):" >> build/hooks/runtime_hook.py
+          echo "        # Return dummy source lines" >> build/hooks/runtime_hook.py
+          echo "        if isinstance(object, types.FunctionType):" >> build/hooks/runtime_hook.py
+          echo "            dummy_source = f\"def {object.__name__}(*args, **kwargs): pass  # Source not available\"" >> build/hooks/runtime_hook.py
+          echo "        elif isinstance(object, type):" >> build/hooks/runtime_hook.py
+          echo "            dummy_source = f\"class {object.__name__}: pass  # Source not available\"" >> build/hooks/runtime_hook.py
+          echo "        else:" >> build/hooks/runtime_hook.py
+          echo "            dummy_source = \"# Source not available\"" >> build/hooks/runtime_hook.py
+          echo "        return ([dummy_source], 1)" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "# Replace the original function with our patched version" >> build/hooks/runtime_hook.py
+          echo "inspect.getsourcelines = patched_getsourcelines" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "# Also patch findsource which is used by getsourcelines" >> build/hooks/runtime_hook.py
+          echo "original_findsource = inspect.findsource" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "@functools.wraps(original_findsource)" >> build/hooks/runtime_hook.py
+          echo "def patched_findsource(object):" >> build/hooks/runtime_hook.py
+          echo "    try:" >> build/hooks/runtime_hook.py
+          echo "        return original_findsource(object)" >> build/hooks/runtime_hook.py
+          echo "    except (IOError, OSError, TypeError):" >> build/hooks/runtime_hook.py
+          echo "        # Return dummy source lines" >> build/hooks/runtime_hook.py
+          echo "        dummy_source = \"# Source not available\"" >> build/hooks/runtime_hook.py
+          echo "        return ([dummy_source], 0)" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "# Replace the original function with our patched version" >> build/hooks/runtime_hook.py
+          echo "inspect.findsource = patched_findsource" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "print(\"Runtime hook: Patched inspect.getsource and related functions\")" >> build/hooks/runtime_hook.py
 
       - name: Build macOS application
         run: |
@@ -84,6 +270,99 @@ jobs:
           pip install -r requirements.txt
           sudo apt-get update
           sudo apt-get install -y libgl1 libglx-mesa0
+
+      - name: Create required directories
+        run: |
+          mkdir -p app/static/voices app/static/output app/data
+          mkdir -p build/temp/TTS/vocoder/configs build/temp/TTS/vocoder/models build/temp/TTS/vocoder/utils build/temp/TTS/vocoder/datasets build/temp/TTS/vocoder/layers
+          mkdir -p build/temp/gruut
+          mkdir -p build/hooks
+
+          # Create placeholder VERSION file for gruut
+          echo "0.0.0" > build/temp/gruut/VERSION
+
+      - name: Create PyInstaller hooks
+        run: |
+          echo "# PyInstaller hook for inflect module" > build/hooks/hook-inflect.py
+          echo "from PyInstaller.utils.hooks import collect_all" >> build/hooks/hook-inflect.py
+          echo "" >> build/hooks/hook-inflect.py
+          echo "# Collect all package data, submodules, etc." >> build/hooks/hook-inflect.py
+          echo "datas, binaries, hiddenimports = collect_all('inflect')" >> build/hooks/hook-inflect.py
+
+          echo "# PyInstaller hook for gruut module" > build/hooks/hook-gruut.py
+          echo "from PyInstaller.utils.hooks import collect_all, copy_metadata" >> build/hooks/hook-gruut.py
+          echo "" >> build/hooks/hook-gruut.py
+          echo "# Collect all package data, submodules, etc." >> build/hooks/hook-gruut.py
+          echo "datas, binaries, hiddenimports = collect_all('gruut')" >> build/hooks/hook-gruut.py
+          echo "" >> build/hooks/hook-gruut.py
+          echo "# Add metadata including VERSION file" >> build/hooks/hook-gruut.py
+          echo "datas += copy_metadata('gruut')" >> build/hooks/hook-gruut.py
+          echo "" >> build/hooks/hook-gruut.py
+          echo "# Add gruut_ipa as a hidden import" >> build/hooks/hook-gruut.py
+          echo "hiddenimports += ['gruut_ipa']" >> build/hooks/hook-gruut.py
+
+          echo "# PyInstaller runtime hook to patch inspect.getsource" > build/hooks/runtime_hook.py
+          echo "import inspect" >> build/hooks/runtime_hook.py
+          echo "import sys" >> build/hooks/runtime_hook.py
+          echo "import types" >> build/hooks/runtime_hook.py
+          echo "import functools" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "# Store the original getsource function" >> build/hooks/runtime_hook.py
+          echo "original_getsource = inspect.getsource" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "# Define a patched version that handles the case when source code can't be found" >> build/hooks/runtime_hook.py
+          echo "@functools.wraps(original_getsource)" >> build/hooks/runtime_hook.py
+          echo "def patched_getsource(object):" >> build/hooks/runtime_hook.py
+          echo "    try:" >> build/hooks/runtime_hook.py
+          echo "        return original_getsource(object)" >> build/hooks/runtime_hook.py
+          echo "    except (IOError, OSError, TypeError):" >> build/hooks/runtime_hook.py
+          echo "        # Return a dummy source string when the real source can't be found" >> build/hooks/runtime_hook.py
+          echo "        if isinstance(object, types.FunctionType):" >> build/hooks/runtime_hook.py
+          echo "            return f\"def {object.__name__}(*args, **kwargs): pass  # Source not available\"" >> build/hooks/runtime_hook.py
+          echo "        elif isinstance(object, type):" >> build/hooks/runtime_hook.py
+          echo "            return f\"class {object.__name__}: pass  # Source not available\"" >> build/hooks/runtime_hook.py
+          echo "        else:" >> build/hooks/runtime_hook.py
+          echo "            return \"# Source not available\"" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "# Replace the original function with our patched version" >> build/hooks/runtime_hook.py
+          echo "inspect.getsource = patched_getsource" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "# Also patch getsourcelines which is used by getsource" >> build/hooks/runtime_hook.py
+          echo "original_getsourcelines = inspect.getsourcelines" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "@functools.wraps(original_getsourcelines)" >> build/hooks/runtime_hook.py
+          echo "def patched_getsourcelines(object):" >> build/hooks/runtime_hook.py
+          echo "    try:" >> build/hooks/runtime_hook.py
+          echo "        return original_getsourcelines(object)" >> build/hooks/runtime_hook.py
+          echo "    except (IOError, OSError, TypeError):" >> build/hooks/runtime_hook.py
+          echo "        # Return dummy source lines" >> build/hooks/runtime_hook.py
+          echo "        if isinstance(object, types.FunctionType):" >> build/hooks/runtime_hook.py
+          echo "            dummy_source = f\"def {object.__name__}(*args, **kwargs): pass  # Source not available\"" >> build/hooks/runtime_hook.py
+          echo "        elif isinstance(object, type):" >> build/hooks/runtime_hook.py
+          echo "            dummy_source = f\"class {object.__name__}: pass  # Source not available\"" >> build/hooks/runtime_hook.py
+          echo "        else:" >> build/hooks/runtime_hook.py
+          echo "            dummy_source = \"# Source not available\"" >> build/hooks/runtime_hook.py
+          echo "        return ([dummy_source], 1)" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "# Replace the original function with our patched version" >> build/hooks/runtime_hook.py
+          echo "inspect.getsourcelines = patched_getsourcelines" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "# Also patch findsource which is used by getsourcelines" >> build/hooks/runtime_hook.py
+          echo "original_findsource = inspect.findsource" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "@functools.wraps(original_findsource)" >> build/hooks/runtime_hook.py
+          echo "def patched_findsource(object):" >> build/hooks/runtime_hook.py
+          echo "    try:" >> build/hooks/runtime_hook.py
+          echo "        return original_findsource(object)" >> build/hooks/runtime_hook.py
+          echo "    except (IOError, OSError, TypeError):" >> build/hooks/runtime_hook.py
+          echo "        # Return dummy source lines" >> build/hooks/runtime_hook.py
+          echo "        dummy_source = \"# Source not available\"" >> build/hooks/runtime_hook.py
+          echo "        return ([dummy_source], 0)" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "# Replace the original function with our patched version" >> build/hooks/runtime_hook.py
+          echo "inspect.findsource = patched_findsource" >> build/hooks/runtime_hook.py
+          echo "" >> build/hooks/runtime_hook.py
+          echo "print(\"Runtime hook: Patched inspect.getsource and related functions\")" >> build/hooks/runtime_hook.py
 
       - name: Build Linux executable
         run: |
