@@ -10,6 +10,7 @@ from TTS.api import TTS
 from pydub import AudioSegment
 
 from app.config import OUTPUT_FOLDER, AUDIO_GENERATION_THREADS
+from app.tts_model.model import get_model_dir
 from app.utils import slugify
 
 
@@ -38,6 +39,9 @@ class AudioGenerator:
     def _initialize_tts(self):
         """Initialize a TTS model instance (one per thread)"""
         self.logger.debug(f"Initializing TTS model instance with model={self.model_name}")
+        # Set the model directory environment variable
+        model_dir = get_model_dir()
+        os.environ["COQUI_TTS_MODELS_DIR"] = os.environ["TTS_HOME"]
         return TTS(self.model_name)
 
     def _process_text_segment(self, text, temp_dir, language, voice_path, segment_info):

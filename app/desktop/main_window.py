@@ -7,9 +7,11 @@ from PyQt6.QtWidgets import (
     QPushButton, QLabel, QMessageBox, QFrame,
     QStackedWidget, )
 
+from app.desktop.model_download_dialog import ModelDownloadDialog
 from app.desktop.routine_editor import RoutineEditorWidget
 from app.desktop.routines_list import RoutinesListWidget
 from app.desktop.settings_dialog import SettingsDialog
+from app.tts_model.model import is_model_downloaded
 
 
 class MainWindow(QMainWindow):
@@ -88,6 +90,9 @@ class MainWindow(QMainWindow):
 
         # Set up status bar
         self.statusBar().showMessage("Ready")
+
+        # Check if the TTS model is downloaded and show the download dialog if needed
+        self.check_tts_model()
 
         self.logger.info("MainWindow initialized")
 
@@ -233,6 +238,11 @@ class MainWindow(QMainWindow):
         settings_action.triggered.connect(self.show_settings_dialog)
         tools_menu.addAction(settings_action)
 
+        # Download TTS Model action
+        download_model_action = QAction("&Download TTS Model", self)
+        download_model_action.triggered.connect(lambda: self.check_tts_model(force_show=True))
+        tools_menu.addAction(download_model_action)
+
 
         # Help menu
         help_menu = menu_bar.addMenu("&Help")
@@ -266,6 +276,21 @@ class MainWindow(QMainWindow):
         self.logger.info("Settings changed")
         # Refresh the UI to reflect the new settings
         self.routines_list.refresh()
+
+    def check_tts_model(self, force_show=False):
+        """Check if the TTS model is downloaded and show the download dialog if needed
+
+        Args:
+            force_show (bool): If True, show the dialog even if the model is already downloaded
+        """
+        self.logger.info("Checking if TTS model is downloaded")
+
+        if not is_model_downloaded() or force_show:
+            self.logger.info("TTS model not downloaded or force_show=True, showing download dialog")
+            dialog = ModelDownloadDialog(self)
+            dialog.exec()
+        else:
+            self.logger.info("TTS model is already downloaded")
 
     def closeEvent(self, event):
         """Handle window close event"""
