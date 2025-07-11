@@ -1,10 +1,11 @@
+import logging.config
 import os
 import sys
-import logging
-import logging.config
+
 from PyQt6.QtWidgets import QApplication
-from app.desktop.main_window import MainWindow
+
 from app.config import USER_VOICES_FOLDER, OUTPUT_FOLDER, LOGGING_CONFIG
+from app.desktop.main_window import MainWindow
 from app.models.migrations import check_migrations, run_migrations
 
 # Configure logging

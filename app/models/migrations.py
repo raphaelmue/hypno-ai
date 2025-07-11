@@ -1,7 +1,9 @@
-import os
 import logging
+import os
+
 import alembic.config
 from alembic import command
+
 from app.models.settings import settings
 
 # Set up logging

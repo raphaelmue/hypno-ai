@@ -1,5 +1,4 @@
 import os
-import sys
 
 from app.models.settings import settings
 
