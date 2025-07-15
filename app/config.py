@@ -37,7 +37,8 @@ LANGUAGES = {
 }
 
 # Logging configuration
-LOGS_FOLDER = os.path.join(BASE_DIR, 'logs')
+# Store logs in the data directory where other app data is stored
+LOGS_FOLDER = os.path.join(DATA_DIR, 'logs')
 os.makedirs(LOGS_FOLDER, exist_ok=True)
 
 LOGGING_CONFIG = {

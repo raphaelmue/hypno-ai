@@ -11,6 +11,10 @@ class Settings:
         'data_dir': os.path.join(os.path.expanduser("~"), "hypno-ai"),
         'default_language': 'en',
         'audio_threads': 4,
+        'heading_pause_duration': 5,  # Duration in seconds for ### headings
+        'ellipsis_pause_duration': 2,  # Duration in seconds for ... ellipses
+        'line_break_pause_duration': 2,  # Duration in seconds for line breaks
+        'break_pause_duration': 5,  # Duration in seconds for [break] tags
     }
 
     def __init__(self):

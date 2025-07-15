@@ -1,15 +1,14 @@
-import logging.config
+import logging
 import os
 import sys
 
 from PyQt6.QtWidgets import QApplication
 
-from app.config import USER_VOICES_FOLDER, OUTPUT_FOLDER, LOGGING_CONFIG
+from app.config import USER_VOICES_FOLDER, OUTPUT_FOLDER
 from app.desktop.main_window import MainWindow
 from app.models.migrations import check_migrations, run_migrations
 
-# Configure logging
-logging.config.dictConfig(LOGGING_CONFIG)
+# Get logger
 logger = logging.getLogger(__name__)
 
 # Ensure required directories exist
@@ -35,6 +34,9 @@ except Exception as e:
 
 def main():
     """Main entry point for the desktop application"""
+    # Log that we're starting the main application
+    logger.info("Starting Hypno-AI desktop application")
+
     # Create the Qt Application
     app = QApplication(sys.argv)
     app.setApplicationName("Hypnosis Audio Generator")

@@ -77,7 +77,7 @@ class RoutineEditorWidget(QWidget):
         form_layout.addRow("Hypnosis Script:", self.text_input)
 
         # Help text for script
-        help_label = QLabel("Use line breaks for a 2-second pause. Insert [break] where you want a 5-second pause in the audio.")
+        help_label = QLabel("Use line breaks for a 2-second pause. Insert [break] for a 5-second pause, ### (headings) for a 5-second pause, and ... (ellipsis) for a 2-second pause.")
         help_label.setStyleSheet("color: gray; font-style: italic;")
         form_layout.addRow("", help_label)
 

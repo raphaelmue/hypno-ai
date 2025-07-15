@@ -10,6 +10,7 @@ from TTS.api import TTS
 from pydub import AudioSegment
 
 from app.config import OUTPUT_FOLDER, AUDIO_GENERATION_THREADS
+from app.models.settings import settings
 from app.tts_model.model import get_model_dir
 from app.utils import slugify
 
@@ -33,8 +34,18 @@ class AudioGenerator:
 
         self.model_name = model_name
         self.num_threads = max(1, num_threads)  # Ensure at least 1 thread
-        self.break_silence = AudioSegment.silent(duration=5000)  # 5 seconds of silence for [break]
-        self.line_silence = AudioSegment.silent(duration=2000)   # 2 seconds of silence for line breaks
+
+        # Get pause durations from settings
+        heading_pause_duration = settings.get('heading_pause_duration', 5)  # Default to 5 seconds
+        ellipsis_pause_duration = settings.get('ellipsis_pause_duration', 2)  # Default to 2 seconds
+        line_break_pause_duration = settings.get('line_break_pause_duration', 2)  # Default to 2 seconds
+        break_pause_duration = settings.get('break_pause_duration', 5)  # Default to 5 seconds
+
+        # Create silence segments
+        self.break_silence = AudioSegment.silent(duration=break_pause_duration * 1000)  # Silence for [break] tags
+        self.line_silence = AudioSegment.silent(duration=line_break_pause_duration * 1000)  # Silence for line breaks
+        self.heading_silence = AudioSegment.silent(duration=heading_pause_duration * 1000)  # Silence for ### headings
+        self.ellipsis_silence = AudioSegment.silent(duration=ellipsis_pause_duration * 1000)  # Silence for ... ellipses
 
     def _initialize_tts(self):
         """Initialize a TTS model instance (one per thread)"""
@@ -69,10 +80,22 @@ class AudioGenerator:
             self.logger.debug(f"Skipping empty segment {main_idx}_{line_idx}")
             return None
 
-        # Skip section headers
+        # Mark section headers and ellipses for special handling
+        is_heading = False
+        has_ellipsis = False
+
         if text.startswith("###"):
-            self.logger.debug(f"Skipping section header segment {main_idx}_{line_idx}")
-            return None
+            self.logger.debug(f"Processing section header segment {main_idx}_{line_idx}")
+            is_heading = True
+            # Remove the ### prefix for TTS processing
+            text = text[3:].strip()
+
+        # Check for ellipsis in the text
+        if "..." in text:
+            self.logger.debug(f"Segment {main_idx}_{line_idx} contains ellipsis")
+            has_ellipsis = True
+            # Replace ellipsis with a space for better TTS processing
+            text = text.replace("...", " ")
 
         # Generate a unique filename for this segment
         segment_path = os.path.join(temp_dir, f"segment_{main_idx}_{line_idx}.wav")
@@ -93,7 +116,8 @@ class AudioGenerator:
             processing_time = time.time() - start_time
             self.logger.info(f"Generated audio for segment {main_idx}_{line_idx} in {processing_time:.2f} seconds")
 
-            return segment_path
+            # Return the segment path along with flags for special handling
+            return segment_path, is_heading, has_ellipsis
         except Exception as e:
             self.logger.error(f"Error processing segment {main_idx}_{line_idx}: {str(e)}")
             raise
@@ -122,11 +146,12 @@ class AudioGenerator:
                 self.logger.debug(f"Worker {thread_id} processing segment {main_idx}_{line_idx}")
 
                 # Process the segment
-                segment_path = self._process_text_segment(text, temp_dir, language, voice_path, segment_info)
+                result = self._process_text_segment(text, temp_dir, language, voice_path, segment_info)
 
                 # Add the result to the result queue if valid
-                if segment_path:
-                    result_queue.put((segment_info, segment_path))
+                if result:
+                    segment_path, is_heading, has_ellipsis = result
+                    result_queue.put((segment_info, segment_path, is_heading, has_ellipsis))
                     segments_processed += 1
                     self.logger.debug(f"Worker {thread_id} completed segment {main_idx}_{line_idx}")
 
@@ -191,7 +216,7 @@ class AudioGenerator:
         Combine audio segments with appropriate silences.
 
         Args:
-            segment_files (list): List of (segment_info, file_path) tuples
+            segment_files (list): List of (segment_info, file_path, is_heading, has_ellipsis) tuples
             output_path (str): Path to save the combined audio
         """
         start_time = time.time()
@@ -201,22 +226,41 @@ class AudioGenerator:
         segment_files.sort(key=lambda x: (x[0][0], x[0][1]))
         self.logger.debug("Sorted segments by main_idx and line_idx")
 
-        # Extract just the file paths in the correct order
-        file_paths = [file_path for _, file_path in segment_files]
+        # Extract the file paths and flags in the correct order
+        processed_segments = [(file_path, is_heading, has_ellipsis) 
+                             for _, file_path, is_heading, has_ellipsis in segment_files]
 
-        if file_paths:
+        if processed_segments:
             combined = AudioSegment.empty()
             total_duration = 0
             break_count = 0
             line_break_count = 0
+            heading_count = 0
+            ellipsis_count = 0
 
-            for i, file_path in enumerate(file_paths):
+            for i, (file_path, is_heading, has_ellipsis) in enumerate(processed_segments):
                 try:
                     segment_audio = AudioSegment.from_wav(file_path)
+
+                    # If this is a heading, add heading silence before the segment
+                    if is_heading:
+                        combined += self.heading_silence
+                        total_duration += len(self.heading_silence)
+                        heading_count += 1
+                        self.logger.debug(f"Added heading silence before segment {segment_files[i][0][0]}_{segment_files[i][0][1]}")
+
+                    # Add the segment audio
                     combined += segment_audio
                     total_duration += len(segment_audio)
 
-                    if i < len(file_paths) - 1:
+                    # If this segment has ellipsis, add ellipsis silence after it
+                    if has_ellipsis:
+                        combined += self.ellipsis_silence
+                        total_duration += len(self.ellipsis_silence)
+                        ellipsis_count += 1
+                        self.logger.debug(f"Added ellipsis silence after segment {segment_files[i][0][0]}_{segment_files[i][0][1]}")
+
+                    if i < len(processed_segments) - 1:
                         # Determine if this is a [break] boundary or just a line break
                         current_info = segment_files[i][0]
                         next_info = segment_files[i+1][0]
@@ -241,7 +285,7 @@ class AudioGenerator:
             combined.export(output_path, format="wav")
 
             processing_time = time.time() - start_time
-            self.logger.info(f"Combined audio segments in {processing_time:.2f} seconds with {break_count} breaks and {line_break_count} line breaks")
+            self.logger.info(f"Combined audio segments in {processing_time:.2f} seconds with {break_count} breaks, {line_break_count} line breaks, {heading_count} headings, and {ellipsis_count} ellipses")
 
             return True
         else:
@@ -264,6 +308,19 @@ class AudioGenerator:
         """
         start_time = time.time()
         self.logger.info(f"Starting audio generation for text of length {len(text)} in language {language}")
+
+        # Reload pause durations from settings to ensure we have the latest values
+        heading_pause_duration = settings.get('heading_pause_duration', 5)
+        ellipsis_pause_duration = settings.get('ellipsis_pause_duration', 2)
+        line_break_pause_duration = settings.get('line_break_pause_duration', 2)
+        break_pause_duration = settings.get('break_pause_duration', 5)
+
+        self.heading_silence = AudioSegment.silent(duration=heading_pause_duration * 1000)
+        self.ellipsis_silence = AudioSegment.silent(duration=ellipsis_pause_duration * 1000)
+        self.line_silence = AudioSegment.silent(duration=line_break_pause_duration * 1000)
+        self.break_silence = AudioSegment.silent(duration=break_pause_duration * 1000)
+
+        self.logger.debug(f"Using pause durations: heading={heading_pause_duration}s, ellipsis={ellipsis_pause_duration}s, line break={line_break_pause_duration}s, [break]={break_pause_duration}s")
 
         # Generate a filename based on the routine name or a UUID if no name is provided
         if routine_name:

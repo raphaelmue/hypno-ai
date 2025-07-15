@@ -6,6 +6,7 @@ Handles downloading, checking, and loading the TTS model.
 import logging
 import os
 import threading
+import torch
 
 from TTS.api import TTS
 
@@ -167,10 +168,11 @@ def get_tts_model():
     if get_model_status()['status'] == 'downloaded':
         try:
             # Set the model directory environment variable
-            model_dir = get_model_dir()
             os.environ["COQUI_TTS_MODELS_DIR"] = os.environ["TTS_HOME"]
 
-            return TTS(MODEL_NAME)
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            logger.info(f"Using device: {device} for TTS model")
+            return TTS(MODEL_NAME).to(device)
         except Exception:
             return None
     return None
