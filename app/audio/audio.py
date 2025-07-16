@@ -72,7 +72,10 @@ class AudioGenerator:
         main_idx, line_idx = segment_info
         start_time = time.time()
 
+        # Log the truncated version for brevity
         self.logger.debug(f"Processing segment {main_idx}_{line_idx}: '{text[:50]}...' if len(text) > 50 else text")
+        # Log the full segment text as requested
+        self.logger.debug(f"Full segment {main_idx}_{line_idx} content: '{text}'")
 
         # Skip empty lines
         text = text.strip()
@@ -383,15 +386,52 @@ class AudioGenerator:
 
                         # Report progress if callback is provided
                         if progress_callback:
-                            progress_percent = int(30 + (processed_segments / total_segments * 40))
+                            progress_percent = int(processed_segments / total_segments * 100)
                             progress_callback(progress_percent, f"Processing segments: {processed_segments} / {total_segments}")
                             self.logger.debug(f"Progress update: {processed_segments}/{total_segments} segments processed")
+
+                    # Check if all threads have exited but we haven't processed all segments
+                    all_threads_exited = all(not thread.is_alive() for thread in threads)
+                    if all_threads_exited and processed_segments < total_segments:
+                        if work_queue.empty():
+                            # If the work queue is empty but we haven't processed all segments,
+                            # there might be segments that were never added to the queue or were lost
+                            self.logger.warning(f"All worker threads exited, work queue empty, but only {processed_segments}/{total_segments} segments processed.")
+
+                            # Check which segments haven't been processed
+                            processed_segment_infos = set(info for info, _, _, _ in segment_files)
+                            all_segment_infos = set(info for _, info in segments)
+                            missing_segment_infos = all_segment_infos - processed_segment_infos
+
+                            if missing_segment_infos:
+                                self.logger.warning(f"Found {len(missing_segment_infos)} missing segments. Re-adding to work queue.")
+                                for segment_text, segment_info in segments:
+                                    if segment_info in missing_segment_infos:
+                                        work_queue.put((segment_text, segment_info))
+                                        self.logger.debug(f"Re-added segment {segment_info[0]}_{segment_info[1]} to work queue")
+
+                        # Start a new worker thread
+                        self.logger.warning(f"Starting new worker thread to process remaining segments.")
+                        thread = threading.Thread(
+                            target=self._worker,
+                            args=(work_queue, result_queue, temp_dir, language, voice_path)
+                        )
+                        thread.daemon = True
+                        thread.start()
+                        threads.append(thread)
 
                     # Small sleep to prevent CPU spinning
                     time.sleep(0.1)
 
                     # Check if all work is done
-                    if work_queue.empty() and processed_segments >= total_segments:
+                    if processed_segments >= total_segments:
+                        self.logger.info(f"All {total_segments} segments have been processed. Breaking loop.")
+                        break
+
+                    # If all threads have exited and the work queue is empty, but we haven't processed all segments,
+                    # it means we've lost some segments and couldn't recover them
+                    if all_threads_exited and work_queue.empty() and processed_segments < total_segments:
+                        self.logger.warning(f"All threads exited, work queue empty, but only {processed_segments}/{total_segments} segments processed. Unable to recover missing segments.")
                         break
 
                 # Ensure all tasks are marked as done

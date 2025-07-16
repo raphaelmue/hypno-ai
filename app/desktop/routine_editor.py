@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config import LANGUAGES, SAMPLE_VOICES, OUTPUT_FOLDER, USER_VOICES_FOLDER
+from app.desktop.generation_dialog import GenerationDialog
 from app.desktop.task_manager import TaskManager
 from app.models.routine import get_routine
 from app.utils import allowed_file
@@ -52,11 +53,8 @@ class RoutineEditorWidget(QWidget):
         # Create the result section
         self.setup_result_section()
 
-        # Connect task manager signals
-        self.task_manager.task_started.connect(self.on_task_started)
-        self.task_manager.task_progress.connect(self.on_task_progress)
-        self.task_manager.task_completed.connect(self.on_task_completed)
-        self.task_manager.task_failed.connect(self.on_task_failed)
+        # Task manager signals are now handled by the GenerationDialog
+        # No need to connect them here
 
         self.logger.info("RoutineEditorWidget initialized")
 
@@ -344,12 +342,11 @@ class RoutineEditorWidget(QWidget):
         # Disable the generate button to prevent multiple clicks
         self.generate_button.setEnabled(False)
 
-        # Show the status section
-        self.status_group.setVisible(True)
-        self.result_group.setVisible(False)
+        # Create and show the generation dialog
+        dialog = GenerationDialog(self, self.task_manager)
 
-        # Start the generation task
-        self.task_manager.start_task(
+        # Start the generation process
+        dialog.start_generation(
             text=text,
             language=language,
             voice_path=voice_path,
@@ -359,8 +356,20 @@ class RoutineEditorWidget(QWidget):
             voice_id=voice_id
         )
 
+        # Show the dialog and wait for it to close
+        result = dialog.exec()
+
+        # Re-enable the generate button
+        self.generate_button.setEnabled(True)
+
+        # If the dialog was accepted and there's a result, process it
+        if result == dialog.Accepted and dialog.get_result():
+            self.on_generation_completed(dialog.get_result())
+        else:
+            self.logger.info("Generation cancelled or failed")
+
     def on_task_started(self):
-        """Handle task start"""
+        """Handle task start (legacy method, generation now handled by dialog)"""
         self.logger.info("Audio generation task started")
         self.status_label.setText("Generating your hypnosis audio... This may take a few minutes.")
         self.status_details.setText("Starting the generation process...")
@@ -368,14 +377,14 @@ class RoutineEditorWidget(QWidget):
         QApplication.processEvents()
 
     def on_task_progress(self, progress, message):
-        """Handle task progress updates"""
+        """Handle task progress updates (legacy method, generation now handled by dialog)"""
         self.logger.debug(f"Audio generation progress: {progress}%, {message}")
         self.progress_bar.setValue(progress)
         self.status_details.setText(message)
         QApplication.processEvents()
 
     def on_task_completed(self, result):
-        """Handle task completion"""
+        """Handle task completion (legacy method, generation now handled by dialog)"""
         self.logger.info(f"Audio generation completed: {result}")
 
         # Update routine ID and output filename
@@ -393,8 +402,22 @@ class RoutineEditorWidget(QWidget):
 
         # Don't emit the save_completed signal here to keep the routine open after generation
 
+    def on_generation_completed(self, result):
+        """Handle generation completion from dialog"""
+        self.logger.info(f"Audio generation completed from dialog: {result}")
+
+        # Update routine ID and output filename
+        self.routine_id = result.get('routine_id')
+        self.output_filename = result.get('filename')
+
+        # Show the result section
+        self.show_result()
+
+        # Hide the status section if it's visible
+        self.status_group.setVisible(False)
+
     def on_task_failed(self, error):
-        """Handle task failure"""
+        """Handle task failure (legacy method, generation now handled by dialog)"""
         self.logger.error(f"Audio generation failed: {error}")
 
         # Hide the status section

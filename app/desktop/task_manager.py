@@ -122,7 +122,7 @@ class TaskManager(QObject):
 
         try:
             # Update progress
-            self.task_progress.emit(20, "Preparing to generate audio...")
+            self.task_progress.emit(0, "Preparing to generate audio...")
 
             # Check for cancellation
             if self._check_cancellation("Task cancelled before audio generation"):
@@ -130,7 +130,7 @@ class TaskManager(QObject):
 
             # Generate the audio file
             self.logger.info(f"Generating audio for routine '{routine_name}'")
-            self.task_progress.emit(30, "Generating audio...")
+            self.task_progress.emit(0, "Generating audio...")
 
             # Define a progress callback function
             def progress_callback(percent, message):
@@ -145,7 +145,7 @@ class TaskManager(QObject):
             )
 
             self.logger.info(f"Audio generation completed: {output_filename}")
-            self.task_progress.emit(70, "Audio generation completed. Saving routine...")
+            self.task_progress.emit(100, "Audio generation completed. Saving routine...")
 
             # Check for cancellation
             if self._check_cancellation("Task cancelled after audio generation"):

@@ -55,7 +55,7 @@ LOGGING_CONFIG = {
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
-            'level': 'INFO',
+            'level': 'DEBUG',
             'formatter': 'standard',
             'stream': 'ext://sys.stdout',
         },
@@ -81,10 +81,28 @@ LOGGING_CONFIG = {
     'loggers': {
         '': {  # root logger
             'handlers': ['console', 'file', 'error_file'],
-            'level': 'INFO',
+            'level': 'DEBUG',
             'propagate': True
         },
-        # App-specific loggers inherit from root logger
-        # No need to duplicate handlers
+        'app': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'DEBUG',
+            'propagate': False
+        },
+        'app.audio': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'DEBUG',
+            'propagate': False
+        },
+        'app.tasks': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'DEBUG',
+            'propagate': False
+        },
+        'app.desktop': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'DEBUG',
+            'propagate': False
+        },
     }
 }
