@@ -24,7 +24,7 @@ A desktop application that generates hypnosis audio from text using XTTS-v2 text
 
 1. Clone this repository:
    ```
-   git clone https://github.com/yourusername/hypno-ai.git
+   git clone https://github.com/raphaelmue/hypno-ai.git
    cd hypno-ai
    ```
 
