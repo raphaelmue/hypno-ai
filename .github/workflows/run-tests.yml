@@ -32,7 +32,7 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libgl1 libglx-mesa0 libpulse0 libasound2
+        sudo apt-get install -y libgl1 libglx-mesa0
 
     - name: Run tests
       run: |
