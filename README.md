@@ -93,6 +93,36 @@ pyinstaller hypno-ai.spec
 
 The executable will be created in the `dist/Hypno-AI` directory.
 
+## Development
+
+### Testing
+
+The project includes a comprehensive test suite using pytest. To run the tests:
+
+1. Install the testing dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+
+2. Run the tests:
+   ```
+   pytest
+   ```
+
+3. Run the tests with coverage reporting:
+   ```
+   pytest --cov=app --cov-report=term
+   ```
+
+For more detailed information about testing, including how to write new tests and the testing approach, see [TESTING.md](TESTING.md).
+
+### Continuous Integration
+
+The project uses GitHub Actions for continuous integration:
+
+- **Run Tests**: Runs the tests and reports coverage on every push to main and pull request
+- **Build Desktop Application**: Builds the desktop application for Windows, macOS, and Linux
+
 ## Notes on XTTS-v2
 
 XTTS-v2 is a multilingual text-to-speech model that can clone voices from short audio samples. For best results:

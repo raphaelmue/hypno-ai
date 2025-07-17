@@ -47,3 +47,7 @@ docker-compose.override.yml
 routines.json
 
 logs/
+
+# Test
+.coverage
+htmlcov/

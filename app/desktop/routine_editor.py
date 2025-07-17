@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
 
 from app.config import LANGUAGES, SAMPLE_VOICES, OUTPUT_FOLDER, USER_VOICES_FOLDER
 from app.desktop.generation_dialog import GenerationDialog
-from app.desktop.task_manager import TaskManager
+from app.desktop.qt_task_manager import TaskManager
 from app.models.routine import get_routine
 from app.utils import allowed_file
 
