@@ -102,6 +102,10 @@ class TaskManager(QObject):
         if self.cancel_requested:
             self.logger.info(message)
             self.task_failed.emit("Task cancelled")
+            # Reset the current task to None to properly clean up the task state
+            self.current_task = None
+            # Reset the cancellation flag
+            self.cancel_requested = False
             return True
         return False
 

@@ -6,12 +6,11 @@ import threading
 import time
 import uuid
 
-from TTS.api import TTS
 from pydub import AudioSegment
 
 from app.config import OUTPUT_FOLDER, AUDIO_GENERATION_THREADS
 from app.models.settings import settings
-from app.tts_model.model import get_model_dir
+from app.tts_model.tts_model import get_tts_model
 from app.utils import slugify
 
 
@@ -46,14 +45,6 @@ class AudioGenerator:
         self.line_silence = AudioSegment.silent(duration=line_break_pause_duration * 1000)  # Silence for line breaks
         self.heading_silence = AudioSegment.silent(duration=heading_pause_duration * 1000)  # Silence for ### headings
         self.ellipsis_silence = AudioSegment.silent(duration=ellipsis_pause_duration * 1000)  # Silence for ... ellipses
-
-    def _initialize_tts(self):
-        """Initialize a TTS model instance (one per thread)"""
-        self.logger.debug(f"Initializing TTS model instance with model={self.model_name}")
-        # Set the model directory environment variable
-        model_dir = get_model_dir()
-        os.environ["COQUI_TTS_MODELS_DIR"] = os.environ["TTS_HOME"]
-        return TTS(self.model_name)
 
     def _process_text_segment(self, text, temp_dir, language, voice_path, segment_info):
         """
@@ -105,7 +96,7 @@ class AudioGenerator:
 
         try:
             # Initialize TTS (each thread needs its own instance)
-            tts = self._initialize_tts()
+            tts = get_tts_model()
 
             # Generate audio for this segment
             self.logger.debug(f"Generating audio for segment {main_idx}_{line_idx}")
@@ -450,7 +441,7 @@ class AudioGenerator:
                 if not success:
                     # Fallback if no valid segments were found
                     self.logger.warning("No valid segments were found, generating fallback audio")
-                    tts = self._initialize_tts()
+                    tts = get_tts_model()
                     tts.tts_to_file(
                         text="No valid text segments found",
                         file_path=output_path,

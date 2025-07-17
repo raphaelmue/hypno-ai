@@ -11,7 +11,7 @@ from app.desktop.model_download_dialog import ModelDownloadDialog
 from app.desktop.routine_editor import RoutineEditorWidget
 from app.desktop.routines_list import RoutinesListWidget
 from app.desktop.settings_dialog import SettingsDialog
-from app.tts_model.model import is_model_downloaded
+from app.tts_model.tts_model import is_model_downloaded
 
 
 class MainWindow(QMainWindow):

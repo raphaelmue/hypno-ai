@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
     QProgressBar, QDialogButtonBox, QMessageBox
 )
 
-from app.tts_model.model import get_model_status, start_model_download, is_model_downloaded, get_model_dir
+from app.tts_model.tts_model import get_model_status, start_model_download, is_model_downloaded, get_model_dir
 
 
 class ModelDownloadDialog(QDialog):

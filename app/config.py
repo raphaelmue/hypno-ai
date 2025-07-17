@@ -81,7 +81,7 @@ LOGGING_CONFIG = {
     'loggers': {
         '': {  # root logger
             'handlers': ['console', 'file', 'error_file'],
-            'level': 'DEBUG',
+            'level': 'INFO',
             'propagate': True
         },
         'app': {
@@ -95,6 +95,11 @@ LOGGING_CONFIG = {
             'propagate': False
         },
         'app.tasks': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'DEBUG',
+            'propagate': False
+        },
+        'app.tts_model': {
             'handlers': ['console', 'file', 'error_file'],
             'level': 'DEBUG',
             'propagate': False
