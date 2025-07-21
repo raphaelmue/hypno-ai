@@ -294,7 +294,7 @@ class RoutineEditorWidget(QWidget):
         # Set the default directory to the user voices folder
         file_dialog.setDirectory(USER_VOICES_FOLDER)
 
-        if file_dialog.exec_():
+        if file_dialog.exec():
             file_paths = file_dialog.selectedFiles()
             if file_paths:
                 file_path = file_paths[0]
@@ -547,7 +547,7 @@ class RoutineEditorWidget(QWidget):
 
         file_dialog.selectFile(f"{suggested_name}.wav")
 
-        if file_dialog.exec_():
+        if file_dialog.exec():
             file_paths = file_dialog.selectedFiles()
             if file_paths:
                 dest_path = file_paths[0]

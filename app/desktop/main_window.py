@@ -26,7 +26,7 @@ class MainWindow(QMainWindow):
 
         # Set up window properties
         self.setWindowTitle("Hypno-AI")
-        self.setMinimumSize(QSize(1000, 700))
+        self.setMinimumSize(QSize(1000, 800))
 
         # Create the menu bar
         self.setup_menu_bar()
