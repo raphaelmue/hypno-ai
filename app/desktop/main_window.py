@@ -154,7 +154,8 @@ class MainWindow(QMainWindow):
         """Handle routine save completion"""
         self.logger.info("Routine saved")
         self.routines_list.refresh()
-        self.right_stacked_widget.setCurrentWidget(self.welcome_widget)
+        # Keep the routine editor open after saving (don't switch to welcome widget)
+        # self.right_stacked_widget.setCurrentWidget(self.welcome_widget)
         self.statusBar().showMessage("Routine saved successfully", 3000)
 
     def on_edit_cancelled(self):

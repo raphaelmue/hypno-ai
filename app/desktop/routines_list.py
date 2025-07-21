@@ -53,12 +53,11 @@ class RoutinesListWidget(QWidget):
     def setup_routines_table(self):
         """Set up the table for displaying routines"""
         self.table = QTableWidget()
-        self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["Name", "Language", "Created", "Actions"])
+        self.table.setColumnCount(3)
+        self.table.setHorizontalHeaderLabels(["Name", "Language", "Created"])
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -91,7 +90,7 @@ class RoutinesListWidget(QWidget):
             self.table.setRowCount(1)
             no_routines_item = QTableWidgetItem("No saved routines yet. Click 'Create New Routine' to get started.")
             no_routines_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.table.setSpan(0, 0, 1, 4)  # Span all columns
+            self.table.setSpan(0, 0, 1, 3)  # Span all columns
             self.table.setItem(0, 0, no_routines_item)
             return
 
@@ -116,41 +115,6 @@ class RoutinesListWidget(QWidget):
             created_item = QTableWidgetItem(created_at)
             self.table.setItem(row, 2, created_item)
 
-            # Actions
-            actions_widget = QWidget()
-            actions_layout = QHBoxLayout(actions_widget)
-            actions_layout.setContentsMargins(5, 2, 5, 2)
-
-            # Edit button
-            edit_button = QPushButton("Edit")
-            edit_button.setProperty("routine_id", routine_id)
-            edit_button.clicked.connect(self.on_edit_clicked)
-            actions_layout.addWidget(edit_button)
-
-            # Regenerate button
-            regenerate_button = QPushButton("Regenerate")
-            regenerate_button.setProperty("routine_id", routine_id)
-            regenerate_button.clicked.connect(self.on_regenerate_clicked)
-            actions_layout.addWidget(regenerate_button)
-
-            # Delete button
-            delete_button = QPushButton("Delete")
-            delete_button.setProperty("routine_id", routine_id)
-            delete_button.clicked.connect(self.on_delete_clicked)
-            actions_layout.addWidget(delete_button)
-
-            # Play button
-            play_button = QPushButton("Play")
-            play_button.setProperty("routine_id", routine_id)
-            output_filename = routine.get('output_filename', '')
-            play_button.setProperty("output_filename", output_filename)
-            play_button.clicked.connect(self.on_play_clicked)
-            # Disable the play button if there's no output filename (routine hasn't been generated)
-            play_button.setEnabled(bool(output_filename))
-            actions_layout.addWidget(play_button)
-
-            self.table.setCellWidget(row, 3, actions_widget)
-
         self.logger.info(f"Loaded {len(routines)} routines into table")
 
     def on_new_clicked(self):
@@ -158,52 +122,6 @@ class RoutinesListWidget(QWidget):
         self.logger.info("New routine button clicked")
         self.new_routine_requested.emit()
 
-    def on_edit_clicked(self):
-        """Handle click on an Edit button"""
-        button = self.sender()
-        routine_id = button.property("routine_id")
-        self.logger.info(f"Edit button clicked for routine: {routine_id}")
-        self.edit_routine_requested.emit(routine_id)
-
-    def on_regenerate_clicked(self):
-        """Handle click on a Regenerate button"""
-        button = self.sender()
-        routine_id = button.property("routine_id")
-        self.logger.info(f"Regenerate button clicked for routine: {routine_id}")
-
-        # Get the routine
-        routine = get_routine(routine_id)
-        if not routine:
-            QMessageBox.warning(self, "Error", "Routine not found.")
-            return
-
-        # Emit the edit signal to open the editor with this routine
-        self.edit_routine_requested.emit(routine_id)
-
-    def on_delete_clicked(self):
-        """Handle click on a Delete button"""
-        button = self.sender()
-        routine_id = button.property("routine_id")
-        self.logger.info(f"Delete button clicked for routine: {routine_id}")
-
-        # Confirm deletion
-        reply = QMessageBox.question(
-            self, 
-            "Confirm Deletion",
-            "Are you sure you want to delete this routine?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
-
-        if reply == QMessageBox.StandardButton.Yes:
-            self.logger.info(f"Deleting routine: {routine_id}")
-            success = delete_routine(routine_id)
-            if success:
-                self.logger.info(f"Routine deleted: {routine_id}")
-                self.refresh()
-            else:
-                self.logger.error(f"Failed to delete routine: {routine_id}")
-                QMessageBox.warning(self, "Error", "Failed to delete routine.")
 
     def on_selection_changed(self):
         """Handle selection change in the routines table"""
@@ -237,31 +155,3 @@ class RoutinesListWidget(QWidget):
         else:
             self.logger.warning(f"Invalid row index from click: {row}, routine_ids length: {len(self.routine_ids)}")
 
-    def on_play_clicked(self):
-        """Handle click on a Play button"""
-        button = self.sender()
-        routine_id = button.property("routine_id")
-        output_filename = button.property("output_filename")
-        self.logger.info(f"Play button clicked for routine: {routine_id}, file: {output_filename}")
-
-        if not output_filename:
-            QMessageBox.warning(self, "Error", "No audio file available for this routine.")
-            return
-
-        # Check if the file exists
-        file_path = os.path.join(OUTPUT_FOLDER, output_filename)
-        if not os.path.exists(file_path):
-            QMessageBox.warning(self, "Error", f"Audio file not found: {output_filename}")
-            return
-
-        # Open the file with the default system application
-        import subprocess
-        try:
-            if os.name == 'nt':  # Windows
-                os.startfile(file_path)
-            elif os.name == 'posix':  # macOS and Linux
-                subprocess.call(('open' if os.uname().sysname == 'Darwin' else 'xdg-open', file_path))
-            self.logger.info(f"Opened audio file: {file_path}")
-        except Exception as e:
-            self.logger.error(f"Error opening audio file: {str(e)}")
-            QMessageBox.warning(self, "Error", f"Error opening audio file: {str(e)}")
