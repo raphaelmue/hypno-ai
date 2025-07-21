@@ -363,7 +363,7 @@ class RoutineEditorWidget(QWidget):
         self.generate_button.setEnabled(True)
 
         # If the dialog was accepted and there's a result, process it
-        if result == dialog.Accepted and dialog.get_result():
+        if result == True and dialog.get_result():
             self.on_generation_completed(dialog.get_result())
         else:
             self.logger.info("Generation cancelled or failed")
