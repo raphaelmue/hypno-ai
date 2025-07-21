@@ -228,6 +228,7 @@ class AudioGenerator:
                     continue
                 
                 # Check if the line is a heading (starts with ###)
+                # Headings are identified but not read in the audio output (only the pause is added)
                 if line.strip().startswith("###"):
                     segments.append((line.strip(), (segment_index, 1)))  # Type 1 = heading
                     segment_index += 1
@@ -273,6 +274,10 @@ class AudioGenerator:
         """
         Combine processed audio segments into a single audio file.
         
+        Note:
+            Headings (lines starting with ###) are identified but not read in the audio output.
+            Only the pause after headings is added to maintain the structure of the audio.
+        
         Args:
             segment_files: List of tuples containing (segment_info, output_file, duration, success)
             output_path: Path to the output audio file
@@ -311,13 +316,11 @@ class AudioGenerator:
                     self.logger.debug(f"Added normal text segment {segment_index}, duration: {duration/1000:.2f}s")
                     
                 elif segment_type == 1:  # Heading
-                    # Add the audio segment
-                    segment_audio = AudioSegment.from_file(output_file)
-                    combined += segment_audio
-                    # Add a pause after the heading
+                    # Skip adding the audio segment for headings (they should be ignored)
+                    # Only add the pause after the heading
                     combined += self.heading_silence
                     heading_count += 1
-                    self.logger.debug(f"Added heading segment {segment_index}, duration: {duration/1000:.2f}s + {len(self.heading_silence)/1000:.2f}s pause")
+                    self.logger.debug(f"Ignored heading segment {segment_index} and added {len(self.heading_silence)/1000:.2f}s pause")
                     
                 elif segment_type == 2:  # Line break
                     # Add a pause for the line break
