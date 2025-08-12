@@ -22,17 +22,6 @@ if "%INSTALL_DIR%"=="" (
     cd /d "%INSTALL_DIR%"
 )
 
-:: Check if repository exists
-if not exist "hypno-ai" (
-    echo Error: Hypno-AI repository not found in %INSTALL_DIR%.
-    echo Please run the setup script first.
-    pause
-    exit /b 1
-)
-
-:: Navigate to repository directory
-cd hypno-ai
-
 :: Check if virtual environment exists
 if not exist ".venv" (
     echo Error: Virtual environment not found.

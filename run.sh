@@ -20,16 +20,6 @@ else
     cd "$INSTALL_DIR" || exit 1
 fi
 
-# Check if repository exists
-if [ ! -d "hypno-ai" ]; then
-    echo "Error: Hypno-AI repository not found in $INSTALL_DIR."
-    echo "Please run the setup script first."
-    exit 1
-fi
-
-# Navigate to repository directory
-cd hypno-ai || exit 1
-
 # Check if virtual environment exists
 if [ ! -d ".venv" ]; then
     echo "Error: Virtual environment not found."
