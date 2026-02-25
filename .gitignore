@@ -1,0 +1,42 @@
+# AI
+.claude/
+
+# IDE
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environments
+venv/
+env/
+ENV/
+.venv
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Distribution / Packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific
+engine/cache/*.wav
+engine/cache/*.mp3
+!engine/cache/.gitkeep
+engine/voices/*.onnx
+engine/voices/*.json
+!engine/voices/.gitkeep
