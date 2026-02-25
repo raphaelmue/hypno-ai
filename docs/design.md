@@ -16,18 +16,19 @@ Version 3.0 · February 2026
 6. [Paragraph-Level Generation & Prosody Continuity](#6-paragraph-level-generation--prosody-continuity)
 7. [AI Script Generation](#7-ai-script-generation)
 8. [Music, Ambient & Binaural Layering](#8-music-ambient--binaural-layering)
-9. [Audio Post-Processing](#9-audio-post-processing)
-10. [Resource Orchestrator](#10-resource-orchestrator)
-11. [CLI Interface](#11-cli-interface)
-12. [Desktop GUI](#12-desktop-gui)
-13. [Packaging & Distribution](#13-packaging--distribution)
-14. [Project Structure](#14-project-structure)
-15. [Technology Stack](#15-technology-stack)
-16. [Configuration](#16-configuration)
-17. [Tauri ↔ Python Bridge — JSON-RPC Schema](#17-tauri--python-bridge--json-rpc-schema)
-18. [Example Session Script](#18-example-session-script)
-19. [Implementation Roadmap](#19-implementation-roadmap)
-20. [Risk Assessment](#20-risk-assessment)
+9. [Language Support](#9-language-support)
+10. [Audio Post-Processing](#10-audio-post-processing)
+11. [Resource Orchestrator](#11-resource-orchestrator)
+12. [CLI Interface](#12-cli-interface)
+13. [Desktop GUI](#13-desktop-gui)
+14. [Packaging & Distribution](#14-packaging--distribution)
+15. [Project Structure](#15-project-structure)
+16. [Technology Stack](#16-technology-stack)
+17. [Configuration](#17-configuration)
+18. [Tauri ↔ Python Bridge — JSON-RPC Schema](#18-tauri--python-bridge--json-rpc-schema)
+19. [Example Session Scripts](#19-example-session-scripts)
+20. [Implementation Roadmap](#20-implementation-roadmap)
+21. [Risk Assessment](#21-risk-assessment)
 
 ---
 
@@ -63,6 +64,7 @@ Scripts are plain-text files (`.hypno` or `.md`) that mix spoken content with in
 ### 2.1 Syntax Overview
 
 ```text
+@{language: en}
 @{voice: calm_female}
 @{speed: 0.85}
 
@@ -100,6 +102,7 @@ Open your eyes. Welcome back.
 
 | Directive | Parameters | Description |
 |-----------|-----------|-------------|
+| `@{language: <code>}` | ISO 639-1 code (`en`, `de`, ...) | Set the script language. Affects voice validation, pacing targets, and AI prompt selection. Defaults to `en` if omitted. See §9. |
 | `@{pause: <duration>}` | `Ns` or `Nms` | Insert silence of the given duration. |
 | `@{voice: <n>}` | Voice identifier string | Switch the TTS voice/model for subsequent text. |
 | `@{voice: pitch=<N>st}` | Semitones (+/-) | Shift pitch relative to the voice default. |
@@ -206,7 +209,7 @@ The GUI provides a "Session Variables" panel where the user fills in values befo
 | **Voice Registry** | Discovers available TTS models/voices, exposes metadata, handles parameter overrides. |
 | **TTS Engine Adapter** | Abstraction over TTS backends. Accepts text + voice config + optional prosody context, returns audio. |
 | **AI Script Studio** | Manages LLM providers and prompt templates for script generation (§7). |
-| **Resource Orchestrator** | Manages GPU/CPU model lifecycle — loads, unloads, and sequences heavy models to prevent VRAM contention (§10). |
+| **Resource Orchestrator** | Manages GPU/CPU model lifecycle — loads, unloads, and sequences heavy models to prevent VRAM contention (§11). |
 | **Render Pipeline** | Iterates over AST blocks, dispatches TTS jobs with prosody context, collects ordered WAV chunk file paths. |
 | **Worker Pool** | Concurrent TTS generation with bounded parallelism (§6). |
 | **Binaural Generator** | Programmatic tone synthesis for brainwave entrainment (§8.3). |
@@ -344,7 +347,7 @@ llm = llm_registry.get(config.ai.provider)
 | **Testability** | Mock engines for unit tests — no GPU required. |
 | **Graceful degradation** | Unavailable models are disabled in the GUI, not crash-inducing. |
 | **Mixed workflows** | Piper for drafts (fast), XTTS for final render (quality). |
-| **Resource awareness** | Each engine reports its VRAM needs, enabling the Resource Orchestrator (§10). |
+| **Resource awareness** | Each engine reports its VRAM needs, enabling the Resource Orchestrator (§11). |
 
 ---
 
@@ -672,7 +675,130 @@ This allows users to skip to "Induction", "Deepening", or "Awakening" in their a
 
 ---
 
-## 9. Audio Post-Processing
+## 9. Language Support
+
+HypnoAI supports **German and English** as first-class script languages from day one. The architecture is designed so that additional languages can be added with minimal effort — a new language requires a voice pack, a pacing profile, and optionally localized prompt templates, but no code changes. The GUI remains English-only.
+
+### 9.1 Language Directive
+
+Scripts declare their language explicitly. This enables voice validation, correct pacing thresholds, and language-appropriate AI generation.
+
+```text
+@{language: de}
+@{voice: de_DE-thorsten-medium}
+@{speed: 0.85}
+
+Schließe deine Augen und nimm einen tiefen Atemzug.
+
+@{pause: 5s}
+
+Lass die Luft langsam durch den Mund ausströmen.
+```
+
+If `@{language}` is omitted, the parser defaults to `en`. The language directive is **session-wide** in v1. A future extension could allow per-paragraph language switching for multilingual sessions.
+
+### 9.2 Voice–Language Validation
+
+The linter cross-checks the declared language against the selected voice:
+
+| Scenario | Behavior |
+|----------|----------|
+| `@{language: de}` + `@{voice: de_DE-thorsten-medium}` | ✅ Valid |
+| `@{language: de}` + `@{voice: en_US-amy-medium}` | ⚠️ Warning: *"Voice 'en_US-amy-medium' is English but script language is German. This will produce poor pronunciation."* |
+| `@{language: en}` + `@{voice: de_DE-thorsten-medium}` | ⚠️ Warning (same logic, reversed) |
+| No `@{language}` directive | ℹ️ Info: *"No language set, defaulting to English. Add @{language: de} for German scripts."* |
+
+The voice registry tags every voice with its language code. Validation is a simple prefix match (`de_DE-*` → `de`).
+
+### 9.3 Language-Specific Pacing
+
+Hypnotherapeutic pacing differs by language. German has longer compound words, so fewer words-per-minute produce the same speaking rate. The pacing heatmap (§13.3) and the linter adapt their thresholds based on the script language.
+
+| Language | Ideal WPM | "Too Fast" Threshold | Rationale |
+|----------|-----------|---------------------|-----------|
+| **English** | 60–80 | > 90 | Standard for English-language hypnotherapy. |
+| **German** | 50–70 | > 80 | Longer average word length (compound nouns, inflections). |
+
+These thresholds are stored in a **language profile** config, making it trivial to add new languages:
+
+```toml
+# languages/de.toml
+[pacing]
+ideal_wpm_min = 50
+ideal_wpm_max = 70
+too_fast_wpm = 80
+
+[meta]
+name = "German"
+code = "de"
+voice_prefix = "de_DE"
+```
+
+```toml
+# languages/en.toml
+[pacing]
+ideal_wpm_min = 60
+ideal_wpm_max = 80
+too_fast_wpm = 90
+
+[meta]
+name = "English"
+code = "en"
+voice_prefix = "en_US"
+```
+
+### 9.4 AI Prompt Templates per Language
+
+Each prompt template (§7.2) can have **language-specific variants**. This is essential because good hypnotherapy scripts are not translations — they require culturally and linguistically native phrasing.
+
+```
+engine/hypnoai/ai/templates/
+├── progressive_relaxation/
+│   ├── en.toml          # English system prompt + user prompt
+│   └── de.toml          # German system prompt + user prompt
+├── sleep_induction/
+│   ├── en.toml
+│   └── de.toml
+└── ...
+```
+
+**German-specific prompt adjustments:**
+- Use "Du" (informal) rather than "Sie" (formal) — standard in therapeutic context.
+- Use permissive phrasing native to German: *"Du darfst jetzt loslassen..."*, *"Erlaube dir..."*, *"Vielleicht bemerkst du..."* — not literal translations of English patterns.
+- Adapt metaphors to German-speaking cultural context where appropriate.
+- Instruct the LLM to target 50–70 WPM for pacing.
+
+If a template has no variant for the requested language, HypnoAI falls back to the English template with an added instruction: *"Write the script in {language}."* This produces acceptable results but the native templates are preferred.
+
+### 9.5 Voice Availability per Language
+
+The Model Manager (§14) filters available voice packs by language. On first launch, it recommends voices matching the system locale:
+
+| System Locale | Recommended Voice | Engine |
+|---------------|------------------|--------|
+| `en_*` | en_US-amy-medium | Piper |
+| `de_*` | de_DE-thorsten-medium | Piper |
+
+For Coqui XTTS v2 (voice cloning), the cloned voice inherits the language of the reference audio. The user must tag the language when cloning:
+
+```bash
+hypnoai voices --clone mein_therapeut --reference sample.wav --engine coqui --language de
+```
+
+### 9.6 Adding a New Language (Future)
+
+Adding a third language (e.g. French, Spanish) requires:
+
+1. **Voice pack** — download or clone a voice for that language (via Model Manager).
+2. **Language profile** — create `languages/fr.toml` with pacing thresholds.
+3. **Prompt templates** (optional) — add `fr.toml` variants to template directories for native-quality AI generation. Without these, the English template with a language instruction serves as fallback.
+4. **No code changes** — the parser, renderer, and GUI read language profiles dynamically.
+
+This makes language expansion a content task, not an engineering task.
+
+---
+
+## 10. Audio Post-Processing
 
 | Stage | Purpose | Library |
 |-------|---------|---------|
@@ -688,11 +814,11 @@ This allows users to skip to "Induction", "Deepening", or "Awakening" in their a
 
 ---
 
-## 10. Resource Orchestrator
+## 11. Resource Orchestrator
 
 Consumer hardware (8 GB VRAM GPU, 16 GB RAM) cannot run a large LLM and a large TTS model simultaneously. The Resource Orchestrator prevents contention.
 
-### 10.1 Problem
+### 11.1 Problem
 
 | Scenario | VRAM Needed | 8 GB GPU Result |
 |----------|-------------|-----------------|
@@ -700,7 +826,7 @@ Consumer hardware (8 GB VRAM GPU, 16 GB RAM) cannot run a large LLM and a large 
 | Coqui XTTS v2 | ~4 GB | ✅ fits |
 | Both simultaneously | ~9 GB | ❌ OOM / disk swap |
 
-### 10.2 Solution: Model Lifecycle Manager
+### 11.2 Solution: Model Lifecycle Manager
 
 ```python
 class ResourceOrchestrator:
@@ -736,7 +862,7 @@ class ResourceOrchestrator:
             del self.loaded_models[handle.model.name]
 ```
 
-### 10.3 Workflow Integration
+### 11.3 Workflow Integration
 
 ```
 User clicks "Generate Script" (AI)
@@ -755,13 +881,13 @@ User clicks "Generate Script" again
 
 The GUI shows a **resource indicator** (e.g. "VRAM: 3.8 / 8.0 GB") so the user understands why model switches take a moment.
 
-### 10.4 CPU-Only Mode
+### 11.4 CPU-Only Mode
 
 If no GPU is detected (or the user opts out), the orchestrator selects Piper (CPU-only) as the default TTS engine, routes LLM to a CPU-optimized Ollama model or a remote API, and manages RAM instead of VRAM.
 
 ---
 
-## 11. CLI Interface
+## 12. CLI Interface
 
 ```bash
 # Voices
@@ -789,9 +915,18 @@ hypnoai lint session.hypno
 # AI script generation
 hypnoai generate --template progressive_relaxation \
                  --duration 15 --theme "ocean beach" \
+                 --language en \
                  --var name=Sarah \
                  --provider ollama \
                  -o session.hypno
+
+# Generate a German script
+hypnoai generate --template sleep_induction \
+                 --duration 20 --theme "Waldspaziergang" \
+                 --language de \
+                 --var name=Anna \
+                 --provider ollama \
+                 -o schlaf_session.hypno
 
 # System info
 hypnoai system --info          # show GPU, VRAM, installed models, disk usage
@@ -799,18 +934,18 @@ hypnoai system --info          # show GPU, VRAM, installed models, disk usage
 
 ---
 
-## 12. Desktop GUI
+## 13. Desktop GUI
 
-### 12.1 Technology Choice: Tauri + React
+### 14.1 Technology Choice: Tauri + React
 
 | Consideration | Decision | Rationale |
 |---------------|----------|-----------|
 | **Framework** | **Tauri v2** | Rust-based, ~5 MB shell. Native webview. |
 | **Frontend** | **React + TypeScript** | Rich editor components. |
 | **Styling** | **Tailwind CSS** | Rapid, consistent design. |
-| **Backend bridge** | **Tauri IPC → Python sidecar** | JSON-RPC over stdin/stdout. Audio data passed as **file paths**, never raw bytes (see §12.4). |
+| **Backend bridge** | **Tauri IPC → Python sidecar** | JSON-RPC over stdin/stdout. Audio data passed as **file paths**, never raw bytes (see §13.4). |
 
-### 12.2 Screen Layout
+### 14.2 Screen Layout
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -851,12 +986,12 @@ hypnoai system --info          # show GPU, VRAM, installed models, disk usage
 └───────────────┴──────────────────────────────────────────────────────────┘
 ```
 
-### 12.3 Key GUI Panels
+### 14.3 Key GUI Panels
 
 **① Sidebar — Session Manager, Variables & Models**
 - Tree view of saved scripts, AI drafts, and templates.
 - **Variables panel**: key-value fields for `{{name}}`, `{{safe_place}}`, etc. Automatically populated from the script's variable references.
-- **Models panel**: quick overview of installed engines and their status. "Manage..." opens the full Model Manager (§13.4) for downloading, removing, and updating engines and voice packs.
+- **Models panel**: quick overview of installed engines and their status. "Manage..." opens the full Model Manager (§14.6) for downloading, removing, and updating engines and voice packs.
 - Create, duplicate, import/export `.hypno` files.
 
 **② Script Editor with Pacing Heatmap**
@@ -892,7 +1027,7 @@ hypnoai system --info          # show GPU, VRAM, installed models, disk usage
 - Shows currently loaded TTS engine and disk usage for models.
 - Clicking opens the Model Manager panel.
 
-### 12.4 Tauri ↔ Python Bridge
+### 14.4 Tauri ↔ Python Bridge
 
 The Python engine runs as a **managed sidecar process** communicating via JSON-RPC over stdin/stdout.
 
@@ -909,21 +1044,21 @@ The Python engine runs as a **managed sidecar process** communicating via JSON-R
 └──────────────┘                           └─────────────────────┘
 ```
 
-See §17 for the full JSON-RPC schema.
+See §18 for the full JSON-RPC schema.
 
-### 12.5 Theming
+### 14.5 Theming
 
 Dark theme by default (deep blues, soft grays — appropriate for the subject). Light theme available. Muted, warm colors throughout. No harsh whites or saturated accents.
 
 ---
 
-## 13. Packaging & Distribution
+## 14. Packaging & Distribution
 
-### 13.1 The Size Problem
+### 14.1 The Size Problem
 
 Tauri is ~5 MB, but a functional HypnoAI installation includes Python, ML runtimes, and model weights — easily multi-gigabyte. Bundling everything into one installer is impractical and intimidating.
 
-### 13.2 Solution: Bootstrap Installer + Permanent Model Manager
+### 14.2 Solution: Bootstrap Installer + Permanent Model Manager
 
 The key insight is that model management isn't a one-time setup task — it's an ongoing workflow. Users add new voices, try different engines, remove models to free disk space. So the Model Manager is a **first-class, always-accessible feature** in both the CLI and the GUI.
 
@@ -958,7 +1093,7 @@ The key insight is that model management isn't a one-time setup task — it's an
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-### 13.3 Model Manager — CLI
+### 14.3 Model Manager — CLI
 
 The CLI provides full model management as a permanent subcommand:
 
@@ -972,7 +1107,7 @@ hypnoai models info piper                   # size, license, capabilities, voice
 hypnoai models update                       # check for updates to installed models
 ```
 
-### 13.4 Model Manager — GUI
+### 14.4 Model Manager — GUI
 
 In the desktop app, the Model Manager is accessible at any time via the sidebar or settings:
 
@@ -1005,19 +1140,19 @@ In the desktop app, the Model Manager is accessible at any time via the sidebar 
 
 The Model Manager panel also shows license info, disk usage per model, and warns before deleting a model that's referenced in saved scripts.
 
-### 13.5 Update Strategy
+### 14.5 Update Strategy
 
 - **App shell**: Auto-update via Tauri's built-in updater.
 - **Python engine**: Versioned separately; updated via the sidecar package manager.
 - **Models**: Downloaded on demand; version-pinned in config. `hypnoai models update` checks for newer versions.
 
-### 13.6 Licensing Awareness
+### 14.6 Licensing Awareness
 
 The Model Manager displays license information for each model. Only models with permissive licenses (Apache 2.0, MIT) are shown by default. Research-only or restricted models require the user to acknowledge the license before downloading.
 
 ---
 
-## 14. Project Structure
+## 15. Project Structure
 
 ```
 hypnoai/
@@ -1046,8 +1181,12 @@ hypnoai/
 │   │   │   ├── openai_provider.py
 │   │   │   ├── anthropic_provider.py
 │   │   │   ├── templates/
-│   │   │   │   ├── progressive_relaxation.toml
-│   │   │   │   ├── sleep_induction.toml
+│   │   │   │   ├── progressive_relaxation/
+│   │   │   │   │   ├── en.toml     # English prompt variant
+│   │   │   │   │   └── de.toml     # German prompt variant
+│   │   │   │   ├── sleep_induction/
+│   │   │   │   │   ├── en.toml
+│   │   │   │   │   └── de.toml
 │   │   │   │   └── ...
 │   │   │   └── post_processor.py
 │   │   ├── render/
@@ -1066,6 +1205,9 @@ hypnoai/
 │   │   │   ├── orchestrator.py     # VRAM/RAM model manager
 │   │   │   └── model_downloader.py
 │   │   └── config.py
+│   ├── languages/                  # Language profiles (pacing, metadata)
+│   │   ├── en.toml
+│   │   └── de.toml
 │   ├── voices/
 │   ├── cache/
 │   └── tests/
@@ -1099,14 +1241,19 @@ hypnoai/
 │   └── tailwind.config.ts
 │
 └── examples/
-    ├── deep_relaxation.hypno
-    ├── sleep_induction.hypno
-    └── morning_meditation.hypno
+    ├── en/
+    │   ├── deep_relaxation.hypno
+    │   ├── sleep_induction.hypno
+    │   └── morning_meditation.hypno
+    └── de/
+        ├── tiefenentspannung.hypno
+        ├── schlaf_induktion.hypno
+        └── morgen_meditation.hypno
 ```
 
 ---
 
-## 15. Technology Stack
+## 16. Technology Stack
 
 | Layer | Choice | Rationale |
 |-------|--------|-----------|
@@ -1131,7 +1278,7 @@ hypnoai/
 
 ---
 
-## 16. Configuration
+## 17. Configuration
 
 ```toml
 # hypnoai.toml
@@ -1176,6 +1323,12 @@ ollama_url = "http://localhost:11434"
 # anthropic_api_key = "sk-ant-..."
 default_template = "progressive_relaxation"
 default_duration_minutes = 15
+default_language = "en"         # language for AI-generated scripts
+
+[languages]
+# Language profiles are loaded from languages/*.toml
+# Built-in: en, de. Add more by creating new profile files.
+profiles_dir = "./languages"
 
 [resources]
 vram_budget_mb = 0              # 0 = auto-detect
@@ -1190,11 +1343,11 @@ pacing_target_wpm = 70          # ideal words-per-minute for hypnosis
 
 ---
 
-## 17. Tauri ↔ Python Bridge — JSON-RPC Schema
+## 18. Tauri ↔ Python Bridge — JSON-RPC Schema
 
 All communication between Tauri and the Python sidecar uses JSON-RPC 2.0 over stdin/stdout. Audio data is **never** sent over the bridge — only file paths.
 
-### 17.1 Shared Temp Directory
+### 18.1 Shared Temp Directory
 
 On startup, the sidecar creates a session-specific temp directory:
 
@@ -1211,7 +1364,7 @@ On startup, the sidecar creates a session-specific temp directory:
 
 Tauri has read access to this directory. The sidecar returns paths; Tauri reads the files directly for playback and waveform rendering.
 
-### 17.2 RPC Methods
+### 18.2 RPC Methods
 
 **Script & Rendering:**
 
@@ -1270,7 +1423,8 @@ Tauri has read access to this directory. The sidecar returns paths; Tauri reads 
 ```jsonc
 { "method": "ai.generate", "params": {
     "template": "progressive_relaxation",
-    "variables": { "duration": 15, "theme": "ocean beach", "name": "Sarah" },
+    "language": "de",
+    "variables": { "duration": 15, "theme": "Waldspaziergang", "name": "Anna" },
     "provider": "ollama"
 }}
 → (streamed) { "result": { "chunk": "@{voice: calm_female}\n@{speed: 0.85}\n\n" } }
@@ -1307,7 +1461,7 @@ Tauri has read access to this directory. The sidecar returns paths; Tauri reads 
 → { "result": { "freed_mb": 1800 } }
 ```
 
-### 17.3 Error Handling
+### 18.3 Error Handling
 
 All errors use standard JSON-RPC error codes plus custom codes:
 
@@ -1327,10 +1481,13 @@ The Tauri frontend maps these to user-friendly error messages and suggested acti
 
 ---
 
-## 18. Example Session Script
+## 19. Example Session Scripts
+
+### 19.1 English Example — Progressive Relaxation
 
 ```text
 @{comment: Progressive Muscle Relaxation — 15 min session}
+@{language: en}
 @{voice: en_US-amy-medium}
 @{speed: 0.85}
 @{section: Introduction}
@@ -1400,16 +1557,86 @@ Five. Eyes open. Fully alert. Feeling wonderful.
 Welcome back, {{name}}. Take a moment before you continue with your day.
 ```
 
+### 19.2 German Example — Sleep Induction
+
+```text
+@{comment: Schlaf-Induktion — 10 Minuten}
+@{language: de}
+@{voice: de_DE-thorsten-medium}
+@{speed: 0.80}
+@{section: Einleitung}
+
+Willkommen zu deiner Schlaf-Session, {{name}}.
+Mach es dir bequem und schließe sanft deine Augen.
+
+@{pause: 5s}
+
+Nimm einen tiefen Atemzug durch die Nase ein.
+
+@{breath: 4-4-6}
+
+@{music: start, file="nacht_ambient.wav", volume=0.10, fade_in=5s}
+@{binaural: frequency=3Hz, carrier=80Hz, volume=0.05, fade_in=6s}
+@{section: Vertiefung}
+
+Mit jedem Atemzug sinkst du ein kleines Stück tiefer.
+Du darfst jetzt loslassen, {{name}}. Alles ist gut.
+
+@{pause: 6s}
+@{voice: pitch=-1st, emotion=soothing}
+
+Stell dir vor, du liegst auf einer weichen Wiese.
+Über dir ein klarer Nachthimmel, voller Sterne.
+
+@{pause: 8s}
+
+Die Luft ist angenehm kühl und du spürst,
+wie dein Körper schwerer und schwerer wird.
+
+@{pause: 10s}
+
+@{section: Einschlafen}
+@{music: volume=0.04, fade=4s}
+@{binaural: frequency=1.5Hz, fade=8s}
+@{speed: 0.75}
+
+Zehn... tiefer und tiefer.
+@{pause: 4s}
+Neun... alles loslassen.
+@{pause: 4s}
+Acht... schwerer und ruhiger.
+@{pause: 5s}
+Sieben... nichts ist wichtig.
+@{pause: 5s}
+Sechs... nur noch Stille.
+@{pause: 6s}
+Fünf...
+@{pause: 6s}
+Vier...
+@{pause: 7s}
+Drei...
+@{pause: 8s}
+Zwei...
+@{pause: 10s}
+Eins...
+
+@{pause: 30s}
+
+@{binaural: stop, fade_out=10s}
+@{music: stop, fade_out=15s}
+```
+
 ---
 
-## 19. Implementation Roadmap
+## 20. Implementation Roadmap
 
 ### Phase 1 — Engine MVP (Weeks 1–3)
-- HypnoScript parser (text + `@{pause}` + `@{voice}` + `@{speed}` + `{{variables}}`).
-- Piper TTS integration with voice selection.
+- HypnoScript parser (text + `@{pause}` + `@{voice}` + `@{speed}` + `@{language}` + `{{variables}}`).
+- **Language profiles** for English and German (pacing thresholds, voice validation).
+- Piper TTS integration with voice selection (English + German voice packs).
 - Sequential paragraph rendering.
 - Simple concatenation with silence insertion.
-- CLI: `render`, `voices --list`, `lint`.
+- CLI: `render`, `voices --list`, `lint` (with language–voice mismatch warnings).
 
 ### Phase 2 — Quality & Concurrency (Weeks 4–6)
 - Concurrent paragraph generation with worker pool.
@@ -1420,11 +1647,11 @@ Welcome back, {{name}}. Take a moment before you continue with your day.
 
 ### Phase 3 — AI Integration & Model Management (Weeks 7–9)
 - LLM provider abstraction + Ollama integration.
-- Prompt template system with validation.
-- Post-processor (syntax fix, safety scan, pacing analysis).
-- CLI: `generate` command.
+- Prompt template system with validation — **English and German** template variants.
+- Post-processor (syntax fix, safety scan, pacing analysis — language-aware).
+- CLI: `generate` command (with `--language` flag).
 - OpenAI / Anthropic remote providers.
-- **Model Downloader** as a permanent CLI feature: `hypnoai models download`, `hypnoai models list`, `hypnoai models remove` (see §13).
+- **Model Downloader** as a permanent CLI feature: `hypnoai models download`, `hypnoai models list`, `hypnoai models remove` (see §14).
 
 ### Phase 4 — Desktop GUI (Weeks 10–14)
 - Tauri + React scaffold with Python sidecar bridge.
@@ -1447,7 +1674,7 @@ Welcome back, {{name}}. Take a moment before you continue with your day.
 
 ### Phase 6 — Pro Features (Backlog)
 - **Prosody Continuity**: sequential rendering with tail-audio reference chaining for supported engines (XTTS, F5-TTS). Prosody-aware cache invalidation. See §6.2.
-- **Resource Orchestrator**: VRAM-aware model lifecycle manager with LRU eviction. GUI VRAM indicator. See §10.
+- **Resource Orchestrator**: VRAM-aware model lifecycle manager with LRU eviction. GUI VRAM indicator. See §11.
 - **Emotion tagging** (`@{voice: emotion=whisper}`) with StyleTTS 2 integration.
 - **Live Mode**: real-time practitioner-guided sessions ("Next paragraph" / "Extend pause" buttons while AI speaks to client).
 - SSML passthrough for prosody control.
@@ -1458,17 +1685,17 @@ Welcome back, {{name}}. Take a moment before you continue with your day.
 
 ---
 
-## 20. Risk Assessment
+## 21. Risk Assessment
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
 | **Prosody discontinuity** ("Frankenstein audio") | Jarring tone shifts between paragraphs | Prosody reference chaining for supported engines (§6.2); crossfades + normalization for others. |
-| **Sidecar data bottleneck** | UI lag when transferring audio | Exchange file paths only, never raw bytes. Shared temp directory (§17.1). |
-| **VRAM contention** (LLM + TTS simultaneously) | OOM / crash on consumer GPUs | Resource Orchestrator with LRU eviction (§10). GUI shows VRAM meter. |
-| **Multi-GB install size** | User drop-off during onboarding | Bootstrap installer: tiny initial download, progressive model fetching with clear UI (§13). |
+| **Sidecar data bottleneck** | UI lag when transferring audio | Exchange file paths only, never raw bytes. Shared temp directory (§18.1). |
+| **VRAM contention** (LLM + TTS simultaneously) | OOM / crash on consumer GPUs | Resource Orchestrator with LRU eviction (§11). GUI shows VRAM meter. |
+| **Multi-GB install size** | User drop-off during onboarding | Bootstrap installer: tiny initial download, progressive model fetching with clear UI (§14). |
 | **TTS hallucination on long paragraphs** | Repeated words, gibberish | Paragraph-level generation. "Verify Paragraph" button to re-render single chunks. Max paragraph length limit. |
-| **Audio clipping from mixed layers** | Distortion in final output | Brick-wall limiter at -1 dBFS as final chain stage (§9). |
-| **Model licensing violations** | Legal risk | Model downloader shows license info. Only permissive licenses by default. Restricted models require explicit acknowledgment (§13.4). |
+| **Audio clipping from mixed layers** | Distortion in final output | Brick-wall limiter at -1 dBFS as final chain stage (§10). |
+| **Model licensing violations** | Legal risk | Model downloader shows license info. Only permissive licenses by default. Restricted models require explicit acknowledgment (§14.6). |
 | **LLM generates unsafe content** | Therapeutic harm | Post-processor safety scan; user always reviews before render (§7.5). |
 | **LLM generates invalid HypnoScript** | Broken scripts | Auto-fix common mistakes; lint before render. |
 | **Tauri ↔ sidecar communication failure** | App hang | Heartbeat + timeout. Auto-restart sidecar. Error UI with recovery actions. |
@@ -1476,6 +1703,8 @@ Welcome back, {{name}}. Take a moment before you continue with your day.
 | **Long pauses feel dead** | Poor UX | Quiet pink noise during pauses; encourage `@{music}` and `@{binaural}` usage. |
 | **Prosody cache invalidation cascade** | Slow re-render after small edits | Warn user in GUI; offer "fast mode" (no prosody chain) for editing, "quality mode" for final render. |
 | **Inference drift on long scripts** | Quality degrades towards end | Per-paragraph generation inherently prevents this. "Verify Paragraph" for spot-checking. |
+| **Voice–language mismatch** | Garbled pronunciation, broken immersion | Linter warns when `@{language}` doesn't match voice language prefix. GUI highlights mismatch before render (§9.2). |
+| **AI generates poor non-English scripts** | Unnatural phrasing, literal translations | Native prompt templates per language (§9.4). Fallback to English template + language instruction when no native template exists. |
 
 ---
 
