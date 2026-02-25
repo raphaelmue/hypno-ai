@@ -10,6 +10,7 @@ from pathlib import Path
 class Config:
     """Application configuration loaded from hypnoai.toml."""
 
+    # ------------------------------------------------------------------ Phase 1
     voices_dir: Path = field(default_factory=lambda: Path("engine/voices"))
     cache_dir: Path = field(default_factory=lambda: Path("engine/cache"))
     default_engine: str = "piper"
@@ -17,6 +18,25 @@ class Config:
     default_speed: float = 1.0
     piper_bin: str = "piper"
     sample_rate: int = 22050
+
+    # ------------------------------------------------------------------ Phase 2
+    # Worker pool
+    max_workers: int = 4            # parallel TTS workers (CPU engines only)
+
+    # Paragraph-level render cache
+    cache_enabled: bool = True
+
+    # Post-processing chain
+    crossfade_ms: int = 30          # crossfade between adjacent chunks
+    warmth_db: float = 0.0          # warmth EQ boost in dB (0 = disabled)
+    normalize: bool = True          # enable loudness normalisation
+    target_lufs: float = -16.0      # normalisation target
+    limit: bool = True              # enable brick-wall limiter
+    limit_db: float = -1.0          # limiter ceiling in dBFS
+
+    # Coqui XTTS v2
+    coqui_model: str = "tts_models/multilingual/multi-dataset/xtts_v2"
+    use_gpu: bool = True
 
     @classmethod
     def load(cls, path: Path | None = None) -> "Config":

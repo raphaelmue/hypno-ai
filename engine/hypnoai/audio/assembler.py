@@ -7,7 +7,11 @@ import numpy as np
 import soundfile as sf
 
 
-def assemble(chunk_paths: list[Path], output_path: Path) -> None:
+def assemble(
+    chunk_paths: list[Path],
+    output_path: Path,
+    crossfade_ms: int = 0,
+) -> None:
     """Concatenate WAV chunks into a single output file.
 
     All chunks must share the same sample rate; a :exc:`ValueError` is
@@ -16,6 +20,8 @@ def assemble(chunk_paths: list[Path], output_path: Path) -> None:
     Args:
         chunk_paths: Ordered list of WAV chunk files.
         output_path: Destination path for the assembled output.
+        crossfade_ms: Crossfade duration in milliseconds between adjacent chunks.
+                      0 (default) = hard cuts.
 
     Raises:
         ValueError: If *chunk_paths* is empty or sample rates don't match.
@@ -38,6 +44,12 @@ def assemble(chunk_paths: list[Path], output_path: Path) -> None:
             )
         chunks.append(data)
 
-    combined = np.concatenate(chunks, axis=0)
+    if crossfade_ms > 0:
+        from .effects import crossfade_concat
+
+        combined = crossfade_concat(chunks, sample_rate, fade_ms=crossfade_ms)
+    else:
+        combined = np.concatenate(chunks, axis=0)
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     sf.write(str(output_path), combined, sample_rate, subtype="FLOAT")

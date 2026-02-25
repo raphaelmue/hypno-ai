@@ -15,17 +15,29 @@ class MockTTSEngine:
     """Minimal TTSEngine that records calls and writes silent WAV chunks."""
 
     name = "mock"
+    vram_estimate_mb = 0
+    max_workers = 4
 
     def __init__(self, sample_rate: int = 22050, chunk_duration_s: float = 0.1) -> None:
         self.sample_rate = sample_rate
         self.chunk_duration_s = chunk_duration_s
         self.calls: list[tuple[str, str, float]] = []
 
-    def generate(self, text: str, voice: str, speed: float, output_path: Path) -> None:
+    def generate(
+        self,
+        text: str,
+        voice: str,
+        speed: float,
+        output_path: Path,
+        prosody_reference: Path | None = None,
+    ) -> None:
         self.calls.append((text, voice, speed))
         n = int(self.sample_rate * self.chunk_duration_s)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        sf.write(str(output_path), np.zeros(n, dtype=np.float32), self.sample_rate)
+        sf.write(str(output_path), np.zeros(n, dtype=np.float32), self.sample_rate, subtype="FLOAT")
+
+    def supports_prosody_reference(self) -> bool:
+        return False
 
     def list_voices(self) -> list[VoiceInfo]:
         return [

@@ -28,12 +28,27 @@ class TTSEngine(Protocol):
         """Canonical engine name, e.g. 'piper'."""
         ...
 
+    @property
+    def vram_estimate_mb(self) -> int:
+        """Estimated VRAM required in MiB (0 for CPU-only engines)."""
+        ...
+
+    @property
+    def max_workers(self) -> int:
+        """Recommended worker-pool size for concurrent paragraph rendering.
+
+        CPU-only engines can safely use multiple workers; GPU engines should
+        return 1 to avoid memory contention.
+        """
+        ...
+
     def generate(
         self,
         text: str,
         voice: str,
         speed: float,
         output_path: Path,
+        prosody_reference: Path | None = None,
     ) -> None:
         """Synthesize *text* and write the result to *output_path* as a WAV file.
 
@@ -42,7 +57,13 @@ class TTSEngine(Protocol):
             voice: Voice identifier (engine-specific).
             speed: Playback speed multiplier (1.0 = normal, 0.85 typical for hypnosis).
             output_path: Destination path for the output WAV file.
+            prosody_reference: Optional path to a reference WAV for prosody continuity.
+                               Engines that don't support this ignore the argument.
         """
+        ...
+
+    def supports_prosody_reference(self) -> bool:
+        """Return True if this engine can use a prosody reference audio clip."""
         ...
 
     def list_voices(self) -> list[VoiceInfo]:

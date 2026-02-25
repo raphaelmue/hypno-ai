@@ -7,15 +7,19 @@ import numpy as np
 import pytest
 import soundfile as sf
 
+import soundfile as sf
+
 from hypnoai.parser.ast_nodes import (
     CommentBlock,
     PauseBlock,
+    PitchChangeBlock,
     SectionBlock,
     SpeedChangeBlock,
     TextBlock,
     UnknownDirectiveBlock,
     VoiceChangeBlock,
 )
+from hypnoai.render.cache import RenderCache
 from hypnoai.render.pipeline import RenderPipeline
 
 
@@ -164,3 +168,138 @@ class TestRenderPipeline:
         pipeline = RenderPipeline(mock_engine)
         job = pipeline.render([], tmp_path, initial_voice="v", job_id="my-job")
         assert job.job_id == "my-job"
+
+
+class TestRenderPipelinePhase2:
+    """Phase 2: pitch, cache, parallel path."""
+
+    # ------------------------------------------------------------------
+    # PitchChangeBlock
+    # ------------------------------------------------------------------
+
+    def test_pitch_change_updates_initial_pitch(self, tmp_path, mock_engine):
+        from unittest.mock import patch
+
+        pipeline = RenderPipeline(mock_engine)
+        blocks = [
+            PitchChangeBlock(semitones=-2.0, line=1),
+            TextBlock(text="Hello.", line=2),
+        ]
+        with patch("hypnoai.render.pipeline._apply_pitch_shift") as mock_shift:
+            pipeline.render(blocks, tmp_path, initial_voice="v")
+        mock_shift.assert_called_once()
+        _, semitones = mock_shift.call_args[0]
+        assert semitones == pytest.approx(-2.0)
+
+    def test_initial_pitch_applied(self, tmp_path, mock_engine):
+        from unittest.mock import patch
+
+        pipeline = RenderPipeline(mock_engine)
+        blocks = [TextBlock(text="Test.", line=1)]
+        with patch("hypnoai.render.pipeline._apply_pitch_shift") as mock_shift:
+            pipeline.render(blocks, tmp_path, initial_voice="v", initial_pitch=-1.5)
+        mock_shift.assert_called_once()
+        _, semitones = mock_shift.call_args[0]
+        assert semitones == pytest.approx(-1.5)
+
+    def test_zero_pitch_skips_pitch_shift(self, tmp_path, mock_engine):
+        from unittest.mock import patch
+
+        pipeline = RenderPipeline(mock_engine)
+        blocks = [TextBlock(text="Test.", line=1)]
+        with patch("hypnoai.render.pipeline._apply_pitch_shift") as mock_shift:
+            pipeline.render(blocks, tmp_path, initial_voice="v", initial_pitch=0.0)
+        mock_shift.assert_not_called()
+
+    def test_pitch_reset_by_subsequent_pitch_block(self, tmp_path, mock_engine):
+        from unittest.mock import patch
+
+        pipeline = RenderPipeline(mock_engine)
+        blocks = [
+            PitchChangeBlock(semitones=-2.0, line=1),
+            TextBlock(text="A.", line=2),
+            PitchChangeBlock(semitones=0.0, line=3),
+            TextBlock(text="B.", line=4),
+        ]
+        with patch("hypnoai.render.pipeline._apply_pitch_shift") as mock_shift:
+            pipeline.render(blocks, tmp_path, initial_voice="v")
+        # Only first text block should trigger pitch shift
+        assert mock_shift.call_count == 1
+
+    # ------------------------------------------------------------------
+    # Cache integration
+    # ------------------------------------------------------------------
+
+    def test_cache_hit_skips_engine(self, tmp_path, mock_engine):
+        cache = RenderCache(tmp_path / "cache")
+        # Pre-populate cache for the text block we're about to render
+        key = cache.cache_key("Hello.", "v", 1.0, 0.0)
+        cached_wav = tmp_path / "cached.wav"
+        sf.write(str(cached_wav), np.zeros(100, dtype=np.float32), 22050, subtype="FLOAT")
+        cache.put(key, cached_wav)
+
+        pipeline = RenderPipeline(mock_engine, cache=cache)
+        blocks = [TextBlock(text="Hello.", line=1)]
+        pipeline.render(blocks, tmp_path / "out", initial_voice="v")
+        assert mock_engine.calls == []
+
+    def test_cache_stores_rendered_chunk(self, tmp_path, mock_engine):
+        cache = RenderCache(tmp_path / "cache")
+        pipeline = RenderPipeline(mock_engine, cache=cache)
+        blocks = [TextBlock(text="Hello.", line=1)]
+        pipeline.render(blocks, tmp_path / "out", initial_voice="v")
+        key = cache.cache_key("Hello.", "v", 1.0, 0.0)
+        assert cache.get(key) is not None
+
+    # ------------------------------------------------------------------
+    # Parallel path
+    # ------------------------------------------------------------------
+
+    def test_parallel_path_selected_when_max_workers_gt_1(self, tmp_path, mock_engine):
+        pipeline = RenderPipeline(mock_engine, max_workers=2)
+        blocks = [TextBlock(text="Hello.", line=1)]
+        job = pipeline.render(blocks, tmp_path, initial_voice="v")
+        assert len(job.chunk_paths) == 1
+        assert len(mock_engine.calls) == 1
+
+    def test_parallel_path_preserves_chunk_order(self, tmp_path, mock_engine):
+        pipeline = RenderPipeline(mock_engine, max_workers=4)
+        blocks = [TextBlock(text=f"Chunk {i}.", line=i) for i in range(5)]
+        job = pipeline.render(blocks, tmp_path, initial_voice="v")
+        assert len(job.chunk_paths) == 5
+        names = [p.name for p in job.chunk_paths]
+        assert names == ["000.wav", "001.wav", "002.wav", "003.wav", "004.wav"]
+
+    def test_parallel_path_handles_pause_blocks(self, tmp_path, mock_engine):
+        pipeline = RenderPipeline(mock_engine, max_workers=2)
+        blocks = [
+            TextBlock(text="A.", line=1),
+            PauseBlock(duration_s=1.0, line=2),
+            TextBlock(text="B.", line=3),
+        ]
+        job = pipeline.render(blocks, tmp_path, initial_voice="v")
+        assert len(job.chunk_paths) == 3
+        data, sr = sf.read(str(job.chunk_paths[1]))
+        assert np.all(data == 0.0)
+
+    def test_parallel_path_handles_voice_change(self, tmp_path, mock_engine):
+        pipeline = RenderPipeline(mock_engine, max_workers=2)
+        blocks = [
+            TextBlock(text="First.", line=1),
+            VoiceChangeBlock(voice_id="new-voice", line=2),
+            TextBlock(text="Second.", line=3),
+        ]
+        pipeline.render(blocks, tmp_path, initial_voice="old-voice")
+        voices = [c[1] for c in mock_engine.calls]
+        assert "old-voice" in voices
+        assert "new-voice" in voices
+
+    def test_parallel_path_sections_recorded(self, tmp_path, mock_engine):
+        pipeline = RenderPipeline(mock_engine, max_workers=2)
+        blocks = [
+            SectionBlock(title="Intro", line=1),
+            TextBlock(text="Hello.", line=2),
+        ]
+        job = pipeline.render(blocks, tmp_path, initial_voice="v")
+        assert len(job.sections) == 1
+        assert job.sections[0][1] == "Intro"

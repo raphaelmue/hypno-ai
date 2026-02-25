@@ -8,6 +8,7 @@ import pytest
 from hypnoai.parser.ast_nodes import (
     CommentBlock,
     PauseBlock,
+    PitchChangeBlock,
     SectionBlock,
     SpeedChangeBlock,
     TextBlock,
@@ -111,12 +112,47 @@ def test_voice_change_preserves_id():
     assert blocks[0].voice_id == "de_DE-thorsten-medium"
 
 
-def test_complex_voice_warns_and_returns_unknown():
+def test_voice_with_pitch_and_id_emits_both_blocks():
+    """@{voice: id, pitch=Nst} → [VoiceChangeBlock, PitchChangeBlock]."""
+    blocks = parse("@{voice: en_US-amy-medium, pitch=-2st}")
+    assert len(blocks) == 2
+    assert isinstance(blocks[0], VoiceChangeBlock)
+    assert blocks[0].voice_id == "en_US-amy-medium"
+    assert isinstance(blocks[1], PitchChangeBlock)
+    assert blocks[1].semitones == pytest.approx(-2.0)
+
+
+def test_voice_pitch_only_emits_pitch_change():
+    """@{voice: pitch=Nst} without a voice ID → only PitchChangeBlock."""
+    blocks = parse("@{voice: pitch=-2st, emotion=soothing}")
+    assert len(blocks) == 1
+    assert isinstance(blocks[0], PitchChangeBlock)
+    assert blocks[0].semitones == pytest.approx(-2.0)
+
+
+def test_voice_invalid_pitch_warns_and_returns_unknown():
+    """@{voice: pitch=bad} → warns + UnknownDirectiveBlock (no parseable fields)."""
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        blocks = parse("@{voice: pitch=-2st, emotion=soothing}")
-    assert any("Complex @{voice}" in str(w.message) for w in caught)
+        blocks = parse("@{voice: pitch=notvalid}")
+    assert any("pitch" in str(w.message).lower() for w in caught)
     assert isinstance(blocks[0], UnknownDirectiveBlock)
+
+
+def test_voice_unknown_param_warns_but_returns_voice_block():
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        blocks = parse("@{voice: en_US-amy-medium, unknown_key=val}")
+    assert any("unknown_key" in str(w.message) for w in caught)
+    assert len(blocks) == 1
+    assert isinstance(blocks[0], VoiceChangeBlock)
+
+
+def test_voice_with_positive_pitch():
+    blocks = parse("@{voice: en_US-ryan, pitch=+1.5st}")
+    assert isinstance(blocks[0], VoiceChangeBlock)
+    assert isinstance(blocks[1], PitchChangeBlock)
+    assert blocks[1].semitones == pytest.approx(1.5)
 
 
 # ---------------------------------------------------------------------------

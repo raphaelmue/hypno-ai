@@ -27,12 +27,24 @@ class PiperEngine:
     def name(self) -> str:
         return "piper"
 
+    @property
+    def vram_estimate_mb(self) -> int:
+        return 0  # CPU-only
+
+    @property
+    def max_workers(self) -> int:
+        return 4  # subprocess-based, safe to parallelise
+
+    def supports_prosody_reference(self) -> bool:
+        return False  # Piper doesn't accept reference audio
+
     def generate(
         self,
         text: str,
         voice: str,
         speed: float,
         output_path: Path,
+        prosody_reference: Path | None = None,  # ignored for Piper
     ) -> None:
         """Synthesize *text* using Piper and write the WAV to *output_path*.
 

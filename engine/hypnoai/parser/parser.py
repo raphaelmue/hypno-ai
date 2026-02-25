@@ -1,12 +1,14 @@
 """Parser that converts HypnoScript tokens into an AST of Blocks."""
 from __future__ import annotations
 
+import re
 import warnings
 
 from .ast_nodes import (
     Block,
     CommentBlock,
     PauseBlock,
+    PitchChangeBlock,
     SectionBlock,
     SpeedChangeBlock,
     TextBlock,
@@ -15,8 +17,11 @@ from .ast_nodes import (
 )
 from .lexer import Token, TokenType, lex
 
-# Directives known but not yet implemented (Phase 2+): suppress "unknown" noise.
+# Directives known but not yet implemented (Phase 3+): suppress "unknown" noise.
 _FUTURE_DIRECTIVES = frozenset({"music", "binaural", "breath", "volume"})
+
+# Regex for pitch param: pitch=-2st or pitch=+1.5st
+_PITCH_RE = re.compile(r"^([+-]?\d+(?:\.\d+)?)st$")
 
 
 def _parse_duration(value: str) -> float:
@@ -29,13 +34,75 @@ def _parse_duration(value: str) -> float:
     raise ValueError(f"Invalid duration {value!r}. Expected format: '3s' or '500ms'.")
 
 
-def _is_simple_voice_id(value: str) -> bool:
-    """Return True if value looks like a bare voice ID (no key=value params)."""
-    return "=" not in value
+def _parse_voice_directive(token: Token) -> list[Block]:
+    """Parse @{voice: ...} which can combine a voice ID, pitch, and emotion."""
+    value = token.value
+    line = token.line
+
+    # Split on commas to get individual params
+    parts = [p.strip() for p in value.split(",") if p.strip()]
+
+    voice_id: str | None = None
+    pitch_semitones: float | None = None
+
+    for part in parts:
+        if "=" not in part:
+            # Bare word — treat as voice ID
+            if voice_id is None:
+                voice_id = part
+            else:
+                warnings.warn(
+                    f"Line {line}: Multiple bare voice IDs in @{{voice}}: {value!r}. "
+                    f"Using first: {voice_id!r}.",
+                    UserWarning,
+                    stacklevel=5,
+                )
+        else:
+            k, _, v = part.partition("=")
+            k = k.strip()
+            v = v.strip()
+            if k == "pitch":
+                m = _PITCH_RE.match(v)
+                if m:
+                    pitch_semitones = float(m.group(1))
+                else:
+                    warnings.warn(
+                        f"Line {line}: Invalid pitch value {v!r}. "
+                        "Expected format like '-2st' or '+1.5st'. Ignored.",
+                        SyntaxWarning,
+                        stacklevel=5,
+                    )
+            elif k == "emotion":
+                # Phase 6 feature — silently accept, no block emitted yet
+                pass
+            else:
+                warnings.warn(
+                    f"Line {line}: Unknown @{{voice}} parameter {k!r}. Ignored.",
+                    UserWarning,
+                    stacklevel=5,
+                )
+
+    blocks: list[Block] = []
+    if voice_id is not None:
+        blocks.append(VoiceChangeBlock(line=line, voice_id=voice_id))
+    if pitch_semitones is not None:
+        blocks.append(PitchChangeBlock(line=line, semitones=pitch_semitones))
+
+    if not blocks:
+        # Nothing parsed — emit unknown directive
+        warnings.warn(
+            f"Line {line}: @{{voice}} directive produced no recognisable parameters "
+            f"(got: {value!r}). Ignored.",
+            UserWarning,
+            stacklevel=5,
+        )
+        return [UnknownDirectiveBlock(line=line, key="voice", value=value)]
+
+    return blocks
 
 
-def _parse_directive(token: Token) -> Block:
-    """Convert a single DIRECTIVE token into the appropriate AST Block."""
+def _parse_directive(token: Token) -> list[Block]:
+    """Convert a single DIRECTIVE token into a list of AST Blocks."""
     key = token.key.lower()
     value = token.value
 
@@ -44,20 +111,11 @@ def _parse_directive(token: Token) -> Block:
             duration = _parse_duration(value)
         except ValueError as exc:
             warnings.warn(f"Line {token.line}: {exc}", SyntaxWarning, stacklevel=4)
-            return UnknownDirectiveBlock(line=token.line, key=key, value=value)
-        return PauseBlock(line=token.line, duration_s=duration)
+            return [UnknownDirectiveBlock(line=token.line, key=key, value=value)]
+        return [PauseBlock(line=token.line, duration_s=duration)]
 
     if key == "voice":
-        if _is_simple_voice_id(value):
-            return VoiceChangeBlock(line=token.line, voice_id=value)
-        # Complex voice params (pitch, emotion) — Phase 6 feature
-        warnings.warn(
-            f"Line {token.line}: Complex @{{voice}} parameters are not yet supported "
-            f"(got: {value!r}). Directive ignored.",
-            UserWarning,
-            stacklevel=4,
-        )
-        return UnknownDirectiveBlock(line=token.line, key=key, value=value)
+        return _parse_voice_directive(token)
 
     if key == "speed":
         try:
@@ -68,20 +126,20 @@ def _parse_directive(token: Token) -> Block:
                 SyntaxWarning,
                 stacklevel=4,
             )
-            return UnknownDirectiveBlock(line=token.line, key=key, value=value)
+            return [UnknownDirectiveBlock(line=token.line, key=key, value=value)]
         if not (0.1 <= speed <= 5.0):
             warnings.warn(
                 f"Line {token.line}: Speed {speed} is outside the recommended range [0.1, 5.0].",
                 UserWarning,
                 stacklevel=4,
             )
-        return SpeedChangeBlock(line=token.line, speed=speed)
+        return [SpeedChangeBlock(line=token.line, speed=speed)]
 
     if key == "section":
-        return SectionBlock(line=token.line, title=value)
+        return [SectionBlock(line=token.line, title=value)]
 
     if key == "comment":
-        return CommentBlock(line=token.line, text=value)
+        return [CommentBlock(line=token.line, text=value)]
 
     if key not in _FUTURE_DIRECTIVES:
         warnings.warn(
@@ -89,7 +147,7 @@ def _parse_directive(token: Token) -> Block:
             UserWarning,
             stacklevel=4,
         )
-    return UnknownDirectiveBlock(line=token.line, key=key, value=value)
+    return [UnknownDirectiveBlock(line=token.line, key=key, value=value)]
 
 
 def parse_tokens(tokens: list[Token]) -> list[Block]:
@@ -112,7 +170,7 @@ def parse_tokens(tokens: list[Token]) -> list[Block]:
             flush_text()
         elif token.type == TokenType.DIRECTIVE:
             flush_text()
-            blocks.append(_parse_directive(token))
+            blocks.extend(_parse_directive(token))
 
     flush_text()
     return blocks

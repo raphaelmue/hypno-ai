@@ -10,6 +10,7 @@ class BlockType(Enum):
     PAUSE = "pause"
     VOICE_CHANGE = "voice_change"
     SPEED_CHANGE = "speed_change"
+    PITCH_CHANGE = "pitch_change"
     SECTION = "section"
     COMMENT = "comment"
     UNKNOWN_DIRECTIVE = "unknown_directive"
@@ -52,6 +53,14 @@ class SpeedChangeBlock(Block):
 
     speed: float
     block_type: BlockType = field(default=BlockType.SPEED_CHANGE, init=False, repr=False)
+
+
+@dataclass
+class PitchChangeBlock(Block):
+    """Shift pitch by N semitones for subsequent text (positive = up, negative = down)."""
+
+    semitones: float
+    block_type: BlockType = field(default=BlockType.PITCH_CHANGE, init=False, repr=False)
 
 
 @dataclass
