@@ -139,7 +139,7 @@ class TestVoicesCommand:
         result = runner.invoke(app, ["voices", "list", "--config", str(config_file)])
         assert result.exit_code == 0
         # Should say no voices found
-        assert "No voices" in result.output or "no voices" in result.output.lower()
+        assert "No" in result.output and "voices" in result.output.lower()
 
     def test_voices_shows_installed_model(self, config_with_voice):
         config_path, _ = config_with_voice

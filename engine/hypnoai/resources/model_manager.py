@@ -314,12 +314,18 @@ class _SingleModelManager:
         )
 
     def info(self, model_id: str) -> ModelInfo | None:
-        return self.get_catalog().get(model_id)
+        catalog = self.get_catalog()
+        if model_id in catalog:
+            return catalog[model_id]
+        # Accept bare engine name as a shorthand (e.g. "coqui" → xtts_v2 entry).
+        if model_id == self._ENGINE_NAME and catalog:
+            return next(iter(catalog.values()))
+        return None
 
 
 class CoquiModelManager(_SingleModelManager):
     _ENGINE_NAME = "coqui"
-    _MODEL_ID = "tts_models/multilingual/multi-dataset/xtts_v2"
+    _MODEL_ID = "coqui-xtts-v2"
     _INSTALL_HINT = "Run: pip install TTS  (model downloads automatically on first use)"
 
 
@@ -337,11 +343,11 @@ class StyleTTSModelManager(_SingleModelManager):
 
 class F5TTSModelManager(_SingleModelManager):
     _ENGINE_NAME = "f5tts"
-    _MODEL_ID = "F5-TTS"
+    _MODEL_ID = "f5-tts"
     _INSTALL_HINT = "Run: pip install f5-tts  (model downloads automatically on first use)"
 
 
 class BarkModelManager(_SingleModelManager):
     _ENGINE_NAME = "bark"
-    _MODEL_ID = "bark-small"
+    _MODEL_ID = "bark"
     _INSTALL_HINT = "Run: pip install suno-bark  (model downloads automatically on first use)"
