@@ -3,12 +3,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 import soundfile as sf
 
 from .cache import RenderCache
 from .worker import WorkItem, WorkerPool, _apply_pitch_shift
+
+ProgressCallback = Callable[[int, int], None]  # (completed, total)
 from ..parser.ast_nodes import (
     Block,
     CommentBlock,
@@ -107,6 +110,7 @@ class RenderPipeline:
         initial_speed: float = 1.0,
         initial_pitch: float = 0.0,
         job_id: str = "render",
+        on_progress: ProgressCallback | None = None,
     ) -> RenderJob:
         """Render all blocks to WAV chunks inside *output_dir*.
 
@@ -131,10 +135,12 @@ class RenderPipeline:
 
         if use_parallel:
             return self._render_parallel(
-                blocks, output_dir, initial_voice, initial_speed, initial_pitch, job_id
+                blocks, output_dir, initial_voice, initial_speed, initial_pitch, job_id,
+                on_progress,
             )
         return self._render_sequential(
-            blocks, output_dir, initial_voice, initial_speed, initial_pitch, job_id
+            blocks, output_dir, initial_voice, initial_speed, initial_pitch, job_id,
+            on_progress,
         )
 
     # ------------------------------------------------------------------
@@ -149,7 +155,11 @@ class RenderPipeline:
         initial_speed: float,
         initial_pitch: float,
         job_id: str,
+        on_progress: ProgressCallback | None = None,
     ) -> RenderJob:
+        total_audio = sum(
+            1 for b in blocks if isinstance(b, (TextBlock, PauseBlock))
+        )
         job = RenderJob(job_id=job_id)
         current_voice = initial_voice
         current_speed = initial_speed
@@ -196,12 +206,16 @@ class RenderPipeline:
 
                 job.chunk_paths.append(chunk_path)
                 chunk_idx += 1
+                if on_progress:
+                    on_progress(len(job.chunk_paths), total_audio)
 
             elif isinstance(block, PauseBlock):
                 chunk_path = output_dir / f"{chunk_idx:03d}.wav"
                 _generate_silence(block.duration_s, self.sample_rate, chunk_path)
                 job.chunk_paths.append(chunk_path)
                 chunk_idx += 1
+                if on_progress:
+                    on_progress(len(job.chunk_paths), total_audio)
                 # Pause doesn't break prosody — keep prosody_ref as-is
 
             elif isinstance(block, VoiceChangeBlock):
@@ -234,6 +248,7 @@ class RenderPipeline:
         initial_speed: float,
         initial_pitch: float,
         job_id: str,
+        on_progress: ProgressCallback | None = None,
     ) -> RenderJob:
         job = RenderJob(job_id=job_id)
         current_voice = initial_voice
@@ -289,14 +304,26 @@ class RenderPipeline:
                 pass
 
         # --- Phase 2: submit text items to worker pool ---
+        pause_count = sum(1 for k, _, _ in plan if k == "pause")
+        total_audio = len(text_items) + pause_count
+        done = [0]
+
+        def _text_progress(completed: int, _total: int) -> None:
+            done[0] = completed
+            if on_progress:
+                on_progress(done[0], total_audio)
+
         pool = WorkerPool(self.engine, self.max_workers, self.cache)
-        pool.submit(text_items)
+        pool.submit(text_items, on_progress=_text_progress if on_progress else None)
 
         # --- Phase 3: generate silences (fast, inline) ---
         for kind, idx, val in plan:
             if kind == "pause":
                 pause_path = output_dir / f"{idx:03d}.wav"
                 _generate_silence(float(val), self.sample_rate, pause_path)
+                done[0] += 1
+                if on_progress:
+                    on_progress(done[0], total_audio)
 
         # --- Phase 4: assemble results in plan order ---
         for kind, idx, val in plan:

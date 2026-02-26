@@ -187,9 +187,9 @@ class TestGenerateCommand:
         captured = {}
 
         class CapturingProvider(_MockProvider):
-            def generate(self, system_prompt, user_prompt):
+            def stream_generate(self, system_prompt, user_prompt):
                 captured["user"] = user_prompt
-                return _SAMPLE_SCRIPT
+                yield _SAMPLE_SCRIPT
 
         with patch("hypnoai.cli._build_llm_provider", return_value=CapturingProvider()):
             runner.invoke(
@@ -205,9 +205,9 @@ class TestGenerateCommand:
         captured = {}
 
         class CapturingProvider(_MockProvider):
-            def generate(self, system_prompt, user_prompt):
+            def stream_generate(self, system_prompt, user_prompt):
                 captured["user"] = user_prompt
-                return _SAMPLE_SCRIPT
+                yield _SAMPLE_SCRIPT
 
         with patch("hypnoai.cli._build_llm_provider", return_value=CapturingProvider()):
             runner.invoke(

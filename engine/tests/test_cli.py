@@ -219,7 +219,10 @@ class TestVoicesAdd:
                 ],
             )
         assert result.exit_code == 0
-        mock_add.assert_called_once_with("en_US-ryan-medium", None)
+        args, kwargs = mock_add.call_args
+        assert args[0] == "en_US-ryan-medium"
+        assert args[1] is None  # reference
+        assert "progress" in kwargs  # Rich progress callback is passed
 
     def test_add_kokoro_voice_exits_1(self, config_file):
         """Preset engines (kokoro, bark) do not support custom voices."""

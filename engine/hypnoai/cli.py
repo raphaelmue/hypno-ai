@@ -8,6 +8,17 @@ from typing import Optional
 
 import typer
 from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    DownloadColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+    TransferSpeedColumn,
+)
 from rich.table import Table
 
 from .audio.post_processor import PostProcessConfig, PostProcessor
@@ -211,40 +222,68 @@ def render(
         limit_db=cfg.limit_db,
     )
 
+    from .parser.ast_nodes import TextBlock as _TextBlock, PauseBlock as _PauseBlock
+
+    total_audio_blocks = sum(1 for b in blocks if isinstance(b, (_TextBlock, _PauseBlock)))
+
+    console.print(
+        f"Rendering [bold]{script.name}[/bold] · "
+        f"engine=[cyan]{engine}[/cyan] · "
+        f"voice=[cyan]{active_voice}[/cyan] · "
+        f"speed=[cyan]{active_speed}[/cyan]"
+        + (f" · pitch=[cyan]{active_pitch:+.1f}st[/cyan]" if active_pitch else "")
+    )
+
     with tempfile.TemporaryDirectory(prefix="hypnoai-") as tmp:
         chunks_dir = Path(tmp) / "chunks"
-        console.print(
-            f"Rendering [bold]{script.name}[/bold] · "
-            f"engine=[cyan]{engine}[/cyan] · "
-            f"voice=[cyan]{active_voice}[/cyan] · "
-            f"speed=[cyan]{active_speed}[/cyan]"
-            + (f" · pitch=[cyan]{active_pitch:+.1f}st[/cyan]" if active_pitch else "")
-        )
-        try:
-            job = pipeline.render(
-                blocks=blocks,
-                output_dir=chunks_dir,
-                initial_voice=active_voice,
-                initial_speed=active_speed,
-                initial_pitch=active_pitch,
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TimeElapsedColumn(),
+            console=console,
+        ) as progress:
+            render_task = progress.add_task(
+                "Rendering…",
+                total=total_audio_blocks if total_audio_blocks > 0 else None,
             )
-        except FileNotFoundError as exc:
-            err_console.print(f"[red]Error:[/red] {exc}")
-            raise typer.Exit(1)
-        except RuntimeError as exc:
-            err_console.print(f"[red]Render failed:[/red] {exc}")
-            raise typer.Exit(1)
 
-        if not job.chunk_paths:
-            console.print("[yellow]Warning:[/yellow] No audio generated (empty script?).")
-            raise typer.Exit(0)
+            def _render_progress(done: int, total: int) -> None:
+                progress.update(render_task, completed=done, total=total)
 
-        pp = PostProcessor(pp_cfg, sample_rate=cfg.sample_rate)
-        try:
-            pp.process(job.chunk_paths, output)
-        except Exception as exc:
-            err_console.print(f"[red]Post-processing failed:[/red] {exc}")
-            raise typer.Exit(1)
+            try:
+                job = pipeline.render(
+                    blocks=blocks,
+                    output_dir=chunks_dir,
+                    initial_voice=active_voice,
+                    initial_speed=active_speed,
+                    initial_pitch=active_pitch,
+                    on_progress=_render_progress,
+                )
+            except FileNotFoundError as exc:
+                err_console.print(f"[red]Error:[/red] {exc}")
+                raise typer.Exit(1)
+            except RuntimeError as exc:
+                err_console.print(f"[red]Render failed:[/red] {exc}")
+                raise typer.Exit(1)
+
+            if not job.chunk_paths:
+                console.print("[yellow]Warning:[/yellow] No audio generated (empty script?).")
+                raise typer.Exit(0)
+
+            progress.update(render_task, description="[green]Rendered")
+            pp_task = progress.add_task("Post-processing…", total=None)
+
+            pp = PostProcessor(pp_cfg, sample_rate=cfg.sample_rate)
+            try:
+                pp.process(job.chunk_paths, output)
+            except Exception as exc:
+                err_console.print(f"[red]Post-processing failed:[/red] {exc}")
+                raise typer.Exit(1)
+
+            progress.update(pp_task, description="[green]Post-processed", completed=1, total=1)
 
     console.print(f"[green]Done![/green] Saved to [bold]{output}[/bold]")
 
@@ -405,11 +444,29 @@ def generate(
         f"~[cyan]{duration}min[/cyan]"
     )
 
-    try:
-        result = ScriptStudio(llm).generate(request)
-    except RuntimeError as exc:
-        err_console.print(f"[red]Generation failed:[/red] {exc}")
-        raise typer.Exit(1)
+    token_count = [0]
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold]{task.description}"),
+        TimeElapsedColumn(),
+        transient=True,
+        console=console,
+    ) as progress:
+        gen_task = progress.add_task("Waiting for LLM…", total=None)
+
+        def _on_token(token: str) -> None:
+            token_count[0] += 1
+            if token_count[0] % 20 == 0:
+                progress.update(gen_task, description=f"Generating… ({token_count[0]} tokens)")
+
+        try:
+            result = ScriptStudio(llm).generate(request, stream_callback=_on_token)
+        except RuntimeError as exc:
+            err_console.print(f"[red]Generation failed:[/red] {exc}")
+            raise typer.Exit(1)
+
+    console.print(f"[dim]Generated {token_count[0]} tokens.[/dim]")
 
     if result.warnings:
         console.print(f"\n[yellow]Post-processing warnings ({len(result.warnings)}):[/yellow]")
@@ -595,25 +652,33 @@ def models_download(
             console.print("Run 'hypnoai models list --available' to see available models.")
             raise typer.Exit(1)
 
-    console.print(f"Downloading [bold]{model_id}[/bold] ({mgr.engine_name})…")
-    last_pct = [-1]
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold]{task.description}"),
+        BarColumn(),
+        DownloadColumn(),
+        TransferSpeedColumn(),
+        TimeRemainingColumn(),
+        console=console,
+    ) as progress:
+        dl_task = progress.add_task(f"Downloading {model_id}…", total=None)
 
-    def _progress(downloaded: int, total: int) -> None:
-        if total > 0:
-            pct = int(downloaded * 100 / total)
-            if pct != last_pct[0] and pct % 10 == 0:
-                console.print(f"  {pct}%  ({downloaded // 1024} KB / {total // 1024} KB)")
-                last_pct[0] = pct
+        def _progress(downloaded: int, total: int) -> None:
+            progress.update(
+                dl_task,
+                completed=downloaded,
+                total=total if total > 0 else None,
+            )
 
-    try:
-        mgr.download(model_id, progress=_progress)
-    except NotImplementedError as exc:
-        # Single-checkpoint engines manage their own download — show the hint.
-        console.print(f"[yellow]Note:[/yellow] {exc}")
-        return
-    except (ValueError, RuntimeError) as exc:
-        err_console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        try:
+            mgr.download(model_id, progress=_progress)
+        except NotImplementedError as exc:
+            # Single-checkpoint engines manage their own download — show the hint.
+            console.print(f"[yellow]Note:[/yellow] {exc}")
+            return
+        except (ValueError, RuntimeError) as exc:
+            err_console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1)
 
     console.print(f"[green]Done![/green] {model_id} installed.")
 
@@ -799,14 +864,45 @@ def voices_add(
         )
         raise typer.Exit(1)
 
-    try:
-        voice = vm.add_voice(name, reference)
-    except NotImplementedError as exc:
-        err_console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
-    except (ValueError, RuntimeError) as exc:
-        err_console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+    if engine == "piper":
+        # Piper voices are downloaded from HuggingFace — show a download bar.
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold]{task.description}"),
+            BarColumn(),
+            DownloadColumn(),
+            TransferSpeedColumn(),
+            TimeRemainingColumn(),
+            console=console,
+        ) as progress:
+            dl_task = progress.add_task(f"Downloading {name}…", total=None)
+
+            def _dl_progress(downloaded: int, total: int) -> None:
+                progress.update(
+                    dl_task,
+                    completed=downloaded,
+                    total=total if total > 0 else None,
+                )
+
+            try:
+                from .resources.voice_manager import PiperVoiceManager
+                assert isinstance(vm, PiperVoiceManager)
+                voice = vm.add_voice(name, reference, progress=_dl_progress)
+            except NotImplementedError as exc:
+                err_console.print(f"[red]Error:[/red] {exc}")
+                raise typer.Exit(1)
+            except (ValueError, RuntimeError) as exc:
+                err_console.print(f"[red]Error:[/red] {exc}")
+                raise typer.Exit(1)
+    else:
+        try:
+            voice = vm.add_voice(name, reference)
+        except NotImplementedError as exc:
+            err_console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1)
+        except (ValueError, RuntimeError) as exc:
+            err_console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1)
 
     console.print(f"[green]Added voice:[/green] {voice.id} ({engine})")
 

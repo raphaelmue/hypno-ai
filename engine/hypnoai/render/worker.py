@@ -4,11 +4,14 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Callable
 
 import soundfile as sf
 
 from .cache import RenderCache
 from ..tts.base import TTSEngine
+
+ProgressCallback = Callable[[int, int], None]  # (completed, total)
 
 
 @dataclass
@@ -57,12 +60,24 @@ class WorkerPool:
         self.max_workers = max(1, max_workers)
         self.cache = cache
 
-    def submit(self, items: list[WorkItem]) -> dict[int, Path]:
-        """Execute all items and return a mapping of index → output path."""
+    def submit(
+        self,
+        items: list[WorkItem],
+        on_progress: ProgressCallback | None = None,
+    ) -> dict[int, Path]:
+        """Execute all items and return a mapping of index → output path.
+
+        Args:
+            items: Work items to process concurrently.
+            on_progress: Optional ``(completed, total)`` callback fired in the
+                calling thread after each item finishes.
+        """
         if not items:
             return {}
 
         results: dict[int, Path] = {}
+        total = len(items)
+        done = 0
 
         def execute(item: WorkItem) -> tuple[int, Path]:
             item.output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -95,5 +110,8 @@ class WorkerPool:
             for future in as_completed(futures):
                 idx, path = future.result()
                 results[idx] = path
+                done += 1
+                if on_progress:
+                    on_progress(done, total)
 
         return results

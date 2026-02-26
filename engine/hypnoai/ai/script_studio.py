@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from typing import Callable
 
 from . import post_processor as pp
 from .base import GenerationResult, LLMProvider, ScriptGenerationRequest
@@ -54,11 +55,18 @@ class ScriptStudio:
     def __init__(self, provider: LLMProvider) -> None:
         self._provider = provider
 
-    def generate(self, request: ScriptGenerationRequest) -> GenerationResult:
+    def generate(
+        self,
+        request: ScriptGenerationRequest,
+        stream_callback: Callable[[str], None] | None = None,
+    ) -> GenerationResult:
         """Generate a HypnoScript draft and post-process it.
 
         Args:
             request: Generation parameters (template, language, duration, theme, …).
+            stream_callback: Optional per-token callback.  When provided the
+                provider's ``stream_generate()`` method is used so callers can
+                show live progress (e.g. a token counter in the CLI).
 
         Returns:
             A GenerationResult with the processed script and any warnings.
@@ -85,8 +93,15 @@ class ScriptStudio:
         # or {{name}} HypnoScript variable syntax.
         user_prompt = _expand_template(template.user_prompt_template, merged_vars)
 
-        # Call the LLM.
-        raw_script = self._provider.generate(system_prompt, user_prompt)
+        # Call the LLM — stream if a token callback was provided.
+        if stream_callback is not None:
+            chunks: list[str] = []
+            for token in self._provider.stream_generate(system_prompt, user_prompt):
+                chunks.append(token)
+                stream_callback(token)
+            raw_script = "".join(chunks)
+        else:
+            raw_script = self._provider.generate(system_prompt, user_prompt)
 
         # Post-process the output.
         result = pp.process(raw_script, language=request.language)

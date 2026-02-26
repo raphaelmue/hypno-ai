@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import Protocol, runtime_checkable
+from typing import Callable, Protocol, runtime_checkable
 
 from ..tts.base import VoiceInfo
+
+ProgressCallback = Callable[[int, int], None]  # (downloaded_bytes, total_bytes)
 
 _DEFAULT_SAMPLE_RATE = 24000
 
@@ -220,18 +222,24 @@ class PiperVoiceManager:
         """Scan voices_dir for installed .onnx pairs."""
         return self._piper_engine.list_voices()
 
-    def add_voice(self, name: str, reference: Path | None = None) -> VoiceInfo:
+    def add_voice(
+        self,
+        name: str,
+        reference: Path | None = None,
+        progress: ProgressCallback | None = None,
+    ) -> VoiceInfo:
         """Download a Piper voice from the HuggingFace catalog.
 
         Args:
             name: Piper voice_id (e.g. ``"en_US-amy-medium"``).
             reference: Unused for Piper (catalog download, not reference clip).
+            progress: Optional ``(downloaded_bytes, total_bytes)`` callback.
 
         Raises:
             ValueError: if the voice_id is not found in the catalog.
             RuntimeError: on network or I/O errors.
         """
-        self._model_manager.download(name)
+        self._model_manager.download(name, progress=progress)
         # Refresh voice list and find the newly installed voice.
         for voice in self.list_voices():
             if voice.id == name:

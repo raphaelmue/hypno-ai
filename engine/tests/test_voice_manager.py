@@ -176,7 +176,7 @@ class TestPiperVoiceManager:
             # Since download is mocked (no file created), list_voices returns []
             # and the fallback VoiceInfo is returned
             result = vm.add_voice("en_US-ryan-medium")
-        mock_dl.assert_called_once_with("en_US-ryan-medium")
+        mock_dl.assert_called_once_with("en_US-ryan-medium", progress=None)
         # Fallback VoiceInfo has the correct id
         assert result.id == "en_US-ryan-medium"
 
