@@ -1,16 +1,24 @@
-"""Bark TTS engine stub — not yet implemented."""
+"""Bark TTS engine adapter."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
+
+import numpy as np
+import soundfile as sf
 
 from .base import VoiceInfo
 
 try:
-    import bark as _bark  # type: ignore[import-untyped]
+    from bark import generate_audio, preload_models  # type: ignore[import-untyped]
+    from bark import SAMPLE_RATE as _BARK_SAMPLE_RATE  # type: ignore[import-untyped]
 
     _HAS_BARK = True
 except ImportError:
     _HAS_BARK = False
+    generate_audio = None  # type: ignore[assignment]
+    preload_models = None  # type: ignore[assignment]
+    _BARK_SAMPLE_RATE = 24000
 
 _BARK_LANGUAGES = [
     "en", "de", "fr", "es", "it", "ja", "ko", "pl", "pt", "ru", "tr", "zh",
@@ -27,11 +35,17 @@ _BARK_ALL_SPEAKERS = _BARK_EN_SPEAKERS + _BARK_OTHER_SPEAKERS
 
 
 class BarkEngine:
-    """Adapter stub for the Bark TTS engine.
+    """Adapter for the Bark TTS engine.
 
-    Bark uses a single ~6 GB multi-file checkpoint with built-in speaker
-    presets. ``generate()`` raises :exc:`NotImplementedError` — full synthesis
-    support is planned for a future phase.
+    Bark uses a ~6 GB multi-file checkpoint with built-in speaker presets.
+    Models are loaded lazily on the first call to :meth:`generate`.
+
+    Speed adjustment is performed via scipy resampling after generation, since
+    Bark itself has no native speed control.  This changes pitch slightly (like
+    a tape-speed effect) — acceptable for hypnosis/meditation material.
+
+    GPU control: set ``use_gpu=False`` to force CPU inference by hiding CUDA
+    devices before the Bark models are initialised.
     """
 
     def __init__(self, voices_dir: Path, use_gpu: bool = True) -> None:
@@ -42,6 +56,11 @@ class BarkEngine:
             )
         self.voices_dir = voices_dir
         self.use_gpu = use_gpu
+        self._loaded = False
+
+    # ------------------------------------------------------------------
+    # Protocol properties
+    # ------------------------------------------------------------------
 
     @property
     def name(self) -> str:
@@ -63,6 +82,10 @@ class BarkEngine:
     def supported_languages(self) -> list[str]:
         return _BARK_LANGUAGES
 
+    # ------------------------------------------------------------------
+    # Protocol methods
+    # ------------------------------------------------------------------
+
     def supports_prosody_reference(self) -> bool:
         return False
 
@@ -78,9 +101,25 @@ class BarkEngine:
         voice: str,
         speed: float,
         output_path: Path,
-        prosody_reference: Path | None = None,
+        prosody_reference: Path | None = None,  # ignored
     ) -> None:
-        raise NotImplementedError("BarkEngine.generate() is not yet implemented.")
+        """Synthesise *text* using Bark and write the WAV to *output_path*.
+
+        Args:
+            voice: Bark speaker preset, e.g. ``"v2/en_speaker_3"``.
+            prosody_reference: Ignored — Bark preset voices have no reference
+                audio mechanism.
+        """
+        self._ensure_loaded()
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        audio: np.ndarray = generate_audio(text, history_prompt=voice)
+        audio = audio.astype(np.float32)
+
+        if abs(speed - 1.0) > 1e-3:
+            audio = _resample_speed(audio, speed)
+
+        sf.write(str(output_path), audio, _BARK_SAMPLE_RATE)
 
     def list_voices(self) -> list[VoiceInfo]:
         return [
@@ -93,3 +132,22 @@ class BarkEngine:
             )
             for speaker in _BARK_ALL_SPEAKERS
         ]
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _ensure_loaded(self) -> None:
+        if not self._loaded:
+            if not self.use_gpu:
+                os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
+            preload_models()
+            self._loaded = True
+
+
+def _resample_speed(audio: np.ndarray, speed: float) -> np.ndarray:
+    """Adjust *audio* duration by *speed* using scipy resampling."""
+    from scipy.signal import resample as _scipy_resample
+
+    target_len = max(1, int(len(audio) / speed))
+    return _scipy_resample(audio, target_len).astype(np.float32)
