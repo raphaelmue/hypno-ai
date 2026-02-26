@@ -42,6 +42,14 @@ models_app = typer.Typer(
 )
 app.add_typer(models_app, name="models")
 
+# Sub-app for voice management
+voices_app = typer.Typer(
+    name="voices",
+    help="List, add, and remove TTS voices.",
+    no_args_is_help=True,
+)
+app.add_typer(voices_app, name="voices")
+
 
 def _load_config(config_path: Optional[Path]) -> Config:
     return Config.load(config_path)
@@ -51,9 +59,71 @@ def _build_engine(engine: str, cfg: Config):
     if engine == "piper":
         return PiperEngine(cfg.voices_dir, piper_bin=cfg.piper_bin)
     if engine == "coqui":
-        from .tts.coqui_engine import CoquiEngine
+        try:
+            from .tts.coqui_engine import CoquiEngine
+            return CoquiEngine(cfg.voices_dir, model_name=cfg.coqui_model, use_gpu=cfg.use_gpu)
+        except ImportError as exc:
+            err_console.print(f"[red]Error:[/red] {exc}")
+            return None
+    if engine == "kokoro":
+        try:
+            from .tts.kokoro_engine import KokoroEngine
+            return KokoroEngine(cfg.voices_dir, use_gpu=cfg.use_gpu)
+        except ImportError as exc:
+            err_console.print(f"[red]Error:[/red] {exc}")
+            return None
+    if engine == "styletts2":
+        try:
+            from .tts.styletts_engine import StyleTTSEngine
+            return StyleTTSEngine(cfg.voices_dir, use_gpu=cfg.use_gpu)
+        except ImportError as exc:
+            err_console.print(f"[red]Error:[/red] {exc}")
+            return None
+    if engine == "f5tts":
+        try:
+            from .tts.f5tts_engine import F5TTSEngine
+            return F5TTSEngine(cfg.voices_dir, use_gpu=cfg.use_gpu)
+        except ImportError as exc:
+            err_console.print(f"[red]Error:[/red] {exc}")
+            return None
+    if engine == "bark":
+        try:
+            from .tts.bark_engine import BarkEngine
+            return BarkEngine(cfg.voices_dir, use_gpu=cfg.use_gpu)
+        except ImportError as exc:
+            err_console.print(f"[red]Error:[/red] {exc}")
+            return None
+    return None
 
-        return CoquiEngine(cfg.voices_dir, model_name=cfg.coqui_model, use_gpu=cfg.use_gpu)
+
+def _build_voice_manager(engine: str, cfg: Config):
+    """Build the appropriate VoiceManager for *engine*."""
+    from .resources.voice_manager import CloneVoiceManager, PiperVoiceManager, PresetVoiceManager
+    from .tts.kokoro_engine import _KOKORO_VOICES, _KOKORO_LANGUAGES
+    from .tts.bark_engine import _BARK_ALL_SPEAKERS, _BARK_LANGUAGES
+    from .tts.base import VoiceInfo
+
+    if engine == "piper":
+        return PiperVoiceManager(cfg.voices_dir, piper_bin=cfg.piper_bin)
+    if engine in ("coqui", "f5tts", "styletts2"):
+        return CloneVoiceManager(engine, cfg.voices_dir)
+    if engine == "kokoro":
+        voices = [
+            VoiceInfo(id=v, name=v.replace("_", " ").title(), language="en-us",
+                      quality="high", engine="kokoro")
+            for v in _KOKORO_VOICES
+        ]
+        return PresetVoiceManager("kokoro", voices)
+    if engine == "bark":
+        voices = [
+            VoiceInfo(
+                id=s, name=s,
+                language=s.split("/")[1].split("_")[0] if "/" in s else "en",
+                quality="high", engine="bark",
+            )
+            for s in _BARK_ALL_SPEAKERS
+        ]
+        return PresetVoiceManager("bark", voices)
     return None
 
 
@@ -111,7 +181,8 @@ def render(
     tts_engine = _build_engine(engine, cfg)
     if tts_engine is None:
         err_console.print(
-            f"[red]Error:[/red] Unknown engine '{engine}'. Available: piper, coqui."
+            f"[red]Error:[/red] Unknown engine '{engine}'. "
+            "Available: piper, coqui, kokoro, styletts2, f5tts, bark."
         )
         raise typer.Exit(1)
 
@@ -234,42 +305,6 @@ def lint(
             console.print(f"  [yellow]·[/yellow] {w.message}")
     else:
         console.print("\n[green]✓ No issues found.[/green]")
-
-
-@app.command()
-def voices(
-    engine: str = typer.Option("piper", "--engine", "-e", help="TTS engine to list voices for."),
-    config_path: Optional[Path] = typer.Option(None, "--config", help="Path to hypnoai.toml."),
-) -> None:
-    """List available TTS voices."""
-    cfg = _load_config(config_path)
-    registry = VoiceRegistry(voices_dir=cfg.voices_dir, piper_bin=cfg.piper_bin)
-    engine_filter = None if engine == "all" else engine
-    voice_list = registry.list_voices(engine=engine_filter)
-
-    if not voice_list:
-        console.print(f"[yellow]No voices installed for engine '{engine}'.[/yellow]")
-        console.print(f"Place .onnx and .onnx.json model files in: {cfg.voices_dir}")
-        return
-
-    table = Table(title=f"Available Voices — {engine}")
-    table.add_column("ID", style="cyan", no_wrap=True)
-    table.add_column("Name")
-    table.add_column("Language")
-    table.add_column("Quality")
-    table.add_column("Sample Rate", justify="right")
-    table.add_column("Size (MB)", justify="right")
-
-    for v in voice_list:
-        table.add_row(
-            v.id,
-            v.name,
-            v.language,
-            v.quality,
-            f"{v.sample_rate} Hz",
-            f"{v.size_mb:.1f}",
-        )
-    console.print(table)
 
 
 @app.command()
@@ -551,6 +586,201 @@ def models_info(
     console.print(f"  Size:      {info.size_mb:.1f} MB")
     console.print(f"  License:   {info.license}")
     console.print(f"  Installed: {'yes' if info.installed else 'no'}")
+
+
+# ---------------------------------------------------------------------------
+# voices sub-app
+# ---------------------------------------------------------------------------
+
+_SUPPORTED_ENGINES = ["piper", "coqui", "kokoro", "styletts2", "f5tts", "bark"]
+
+
+@voices_app.command("list")
+def voices_list(
+    engine: str = typer.Option("piper", "--engine", "-e", help="TTS engine to list voices for (or 'all')."),
+    language: Optional[str] = typer.Option(None, "--language", "-l", help="Filter by language code."),
+    config_path: Optional[Path] = typer.Option(None, "--config", help="Path to hypnoai.toml."),
+) -> None:
+    """List available TTS voices."""
+    cfg = _load_config(config_path)
+    registry = VoiceRegistry(voices_dir=cfg.voices_dir, piper_bin=cfg.piper_bin)
+    engine_filter = None if engine == "all" else engine
+    voice_list = registry.list_voices(engine=engine_filter, language=language)
+
+    if not voice_list:
+        console.print(f"[yellow]No voices installed for engine '{engine}'.[/yellow]")
+        console.print(f"Place .onnx and .onnx.json model files in: {cfg.voices_dir}")
+        return
+
+    title = f"Available Voices — {engine}"
+    if language:
+        title += f" (language: {language})"
+    table = Table(title=title)
+    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("Name")
+    table.add_column("Language")
+    table.add_column("Quality")
+    table.add_column("Sample Rate", justify="right")
+    table.add_column("Size (MB)", justify="right")
+    table.add_column("Custom")
+
+    for v in voice_list:
+        table.add_row(
+            v.id,
+            v.name,
+            v.language,
+            v.quality,
+            f"{v.sample_rate} Hz",
+            f"{v.size_mb:.1f}",
+            "yes" if v.is_custom else "no",
+        )
+    console.print(table)
+
+
+@voices_app.command("add")
+def voices_add(
+    name: str = typer.Argument(..., help="Voice name / voice_id to add."),
+    reference: Optional[Path] = typer.Argument(
+        None, help="Reference .wav clip (required for cloning engines: coqui, f5tts, styletts2)."
+    ),
+    engine: str = typer.Option("piper", "--engine", "-e", help="TTS engine."),
+    config_path: Optional[Path] = typer.Option(None, "--config", help="Path to hypnoai.toml."),
+) -> None:
+    """Add a new voice.
+
+    For Piper: name is the catalog voice_id (e.g. en_US-amy-medium); downloads ONNX.
+    For cloning engines (coqui, f5tts, styletts2): provide a reference .wav clip.
+    For preset engines (kokoro, bark): raises an error — no custom voices.
+    """
+    cfg = _load_config(config_path)
+    vm = _build_voice_manager(engine, cfg)
+
+    if vm is None:
+        err_console.print(
+            f"[red]Error:[/red] Unknown engine '{engine}'. "
+            f"Available: {', '.join(_SUPPORTED_ENGINES)}."
+        )
+        raise typer.Exit(1)
+
+    try:
+        voice = vm.add_voice(name, reference)
+    except NotImplementedError as exc:
+        err_console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
+    except (ValueError, RuntimeError) as exc:
+        err_console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    console.print(f"[green]Added voice:[/green] {voice.id} ({engine})")
+
+
+@voices_app.command("remove")
+def voices_remove(
+    voice_id: str = typer.Argument(..., help="Voice ID to remove."),
+    engine: str = typer.Option("piper", "--engine", "-e", help="TTS engine."),
+    config_path: Optional[Path] = typer.Option(None, "--config", help="Path to hypnoai.toml."),
+) -> None:
+    """Remove an installed voice."""
+    cfg = _load_config(config_path)
+    vm = _build_voice_manager(engine, cfg)
+
+    if vm is None:
+        err_console.print(
+            f"[red]Error:[/red] Unknown engine '{engine}'. "
+            f"Available: {', '.join(_SUPPORTED_ENGINES)}."
+        )
+        raise typer.Exit(1)
+
+    try:
+        removed = vm.remove_voice(voice_id)
+    except NotImplementedError as exc:
+        err_console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    if removed:
+        console.print(f"[green]Removed:[/green] {voice_id} ({engine})")
+    else:
+        err_console.print(f"[yellow]Not found:[/yellow] {voice_id} ({engine})")
+        raise typer.Exit(1)
+
+
+# ---------------------------------------------------------------------------
+# engines command
+# ---------------------------------------------------------------------------
+
+_ENGINE_CAPABILITIES = [
+    {
+        "name": "piper",
+        "gpu": False,
+        "vram": 0,
+        "languages": "installed voices",
+        "cloning": False,
+        "emotions": "",
+    },
+    {
+        "name": "coqui",
+        "gpu": True,
+        "vram": 4096,
+        "languages": "multilingual",
+        "cloning": True,
+        "emotions": "",
+    },
+    {
+        "name": "kokoro",
+        "gpu": True,
+        "vram": 2048,
+        "languages": "en-us,en-gb,fr-fr,de-de,ja,ko,zh",
+        "cloning": False,
+        "emotions": "",
+    },
+    {
+        "name": "styletts2",
+        "gpu": True,
+        "vram": 3072,
+        "languages": "en",
+        "cloning": True,
+        "emotions": "neutral,happy,sad,angry,fearful,disgusted,surprised",
+    },
+    {
+        "name": "f5tts",
+        "gpu": True,
+        "vram": 4096,
+        "languages": "en,zh",
+        "cloning": True,
+        "emotions": "",
+    },
+    {
+        "name": "bark",
+        "gpu": True,
+        "vram": 6144,
+        "languages": "en,de,fr,es,it,ja,ko,pl,pt,ru,tr,zh",
+        "cloning": False,
+        "emotions": "neutral",
+    },
+]
+
+
+@app.command()
+def engines() -> None:
+    """List all supported TTS engines and their capabilities."""
+    tbl = Table(title="Supported TTS Engines")
+    tbl.add_column("Engine", style="cyan", no_wrap=True)
+    tbl.add_column("GPU", justify="center")
+    tbl.add_column("VRAM (MB)", justify="right")
+    tbl.add_column("Languages")
+    tbl.add_column("Cloning", justify="center")
+    tbl.add_column("Emotions")
+
+    for eng in _ENGINE_CAPABILITIES:
+        tbl.add_row(
+            eng["name"],
+            "yes" if eng["gpu"] else "no",
+            str(eng["vram"]) if eng["vram"] else "—",
+            eng["languages"],
+            "yes" if eng["cloning"] else "no",
+            eng["emotions"] or "—",
+        )
+    console.print(tbl)
 
 
 def main() -> None:

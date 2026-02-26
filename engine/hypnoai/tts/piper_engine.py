@@ -35,8 +35,22 @@ class PiperEngine:
     def max_workers(self) -> int:
         return 4  # subprocess-based, safe to parallelise
 
+    @property
+    def requires_gpu(self) -> bool:
+        return False  # CPU-only
+
+    @property
+    def supported_languages(self) -> list[str]:
+        return sorted({v.language for v in self.list_voices()})
+
     def supports_prosody_reference(self) -> bool:
         return False  # Piper doesn't accept reference audio
+
+    def supports_voice_cloning(self) -> bool:
+        return False  # Piper uses catalog models only
+
+    def supported_emotions(self) -> list[str]:
+        return []
 
     def generate(
         self,

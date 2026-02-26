@@ -1,7 +1,7 @@
 """TTS engine protocol and shared data structures."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
@@ -17,6 +17,7 @@ class VoiceInfo:
     engine: str
     sample_rate: int = 22050
     size_mb: float = 0.0
+    is_custom: bool = False  # True for user-added reference clips
 
 
 @runtime_checkable
@@ -42,6 +43,20 @@ class TTSEngine(Protocol):
         """
         ...
 
+    @property
+    def requires_gpu(self) -> bool:
+        """True if this engine requires a GPU to function."""
+        ...
+
+    @property
+    def supported_languages(self) -> list[str]:
+        """Language codes supported by this engine.
+
+        Examples: ``["en_US", "de_DE"]`` for Piper (from installed voices);
+        ``["multilingual"]`` for XTTS; ``["en-us", "ja", "ko"]`` for Kokoro.
+        """
+        ...
+
     def generate(
         self,
         text: str,
@@ -64,6 +79,17 @@ class TTSEngine(Protocol):
 
     def supports_prosody_reference(self) -> bool:
         """Return True if this engine can use a prosody reference audio clip."""
+        ...
+
+    def supports_voice_cloning(self) -> bool:
+        """Return True if voices can be user-defined reference .wav clips."""
+        ...
+
+    def supported_emotions(self) -> list[str]:
+        """Return the list of emotion labels this engine supports.
+
+        Returns an empty list for engines that don't support emotion control.
+        """
         ...
 
     def list_voices(self) -> list[VoiceInfo]:

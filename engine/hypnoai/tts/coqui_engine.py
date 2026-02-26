@@ -67,12 +67,26 @@ class CoquiEngine:
     def max_workers(self) -> int:
         return 1  # GPU model — serialise to avoid OOM
 
+    @property
+    def requires_gpu(self) -> bool:
+        return self.use_gpu
+
+    @property
+    def supported_languages(self) -> list[str]:
+        return ["multilingual"]
+
     # ------------------------------------------------------------------
     # Protocol methods
     # ------------------------------------------------------------------
 
     def supports_prosody_reference(self) -> bool:
         return True
+
+    def supports_voice_cloning(self) -> bool:
+        return True
+
+    def supported_emotions(self) -> list[str]:
+        return []
 
     def generate(
         self,
@@ -115,6 +129,7 @@ class CoquiEngine:
                     engine="coqui",
                     sample_rate=_DEFAULT_SAMPLE_RATE,
                     size_mb=round(wav.stat().st_size / (1024 * 1024), 1),
+                    is_custom=True,
                 )
             )
         return voices

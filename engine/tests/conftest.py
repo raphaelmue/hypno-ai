@@ -17,6 +17,8 @@ class MockTTSEngine:
     name = "mock"
     vram_estimate_mb = 0
     max_workers = 4
+    requires_gpu = False
+    supported_languages = ["en"]
 
     def __init__(self, sample_rate: int = 22050, chunk_duration_s: float = 0.1) -> None:
         self.sample_rate = sample_rate
@@ -38,6 +40,12 @@ class MockTTSEngine:
 
     def supports_prosody_reference(self) -> bool:
         return False
+
+    def supports_voice_cloning(self) -> bool:
+        return False
+
+    def supported_emotions(self) -> list[str]:
+        return []
 
     def list_voices(self) -> list[VoiceInfo]:
         return [

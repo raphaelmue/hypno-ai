@@ -137,21 +137,21 @@ class TestLintCommand:
 
 class TestVoicesCommand:
     def test_voices_no_models_installed(self, config_file):
-        result = runner.invoke(app, ["voices", "--config", str(config_file)])
+        result = runner.invoke(app, ["voices", "list", "--config", str(config_file)])
         assert result.exit_code == 0
         # Should say no voices found
         assert "No voices" in result.output or "no voices" in result.output.lower()
 
     def test_voices_shows_installed_model(self, config_with_voice):
         config_path, _ = config_with_voice
-        result = runner.invoke(app, ["voices", "--config", str(config_path)])
+        result = runner.invoke(app, ["voices", "list", "--config", str(config_path)])
         assert result.exit_code == 0
         assert "en_US-amy-medium" in result.output
 
     def test_voices_shows_engine_filter(self, config_with_voice):
         config_path, _ = config_with_voice
         result = runner.invoke(
-            app, ["voices", "--engine", "piper", "--config", str(config_path)]
+            app, ["voices", "list", "--engine", "piper", "--config", str(config_path)]
         )
         assert result.exit_code == 0
         assert "en_US-amy-medium" in result.output
@@ -159,10 +159,135 @@ class TestVoicesCommand:
     def test_voices_empty_for_unknown_engine(self, config_with_voice):
         config_path, _ = config_with_voice
         result = runner.invoke(
-            app, ["voices", "--engine", "coqui", "--config", str(config_path)]
+            app, ["voices", "list", "--engine", "coqui", "--config", str(config_path)]
         )
         assert result.exit_code == 0
         assert "No voices" in result.output or "en_US-amy-medium" not in result.output
+
+
+class TestVoicesAdd:
+    def test_add_coqui_voice_with_reference(self, tmp_path, config_file):
+        """Copying a reference wav into voices_dir for coqui engine."""
+        ref = tmp_path / "speaker.wav"
+        ref.write_bytes(b"\x00" * 100)
+        result = runner.invoke(
+            app,
+            [
+                "voices", "add", "my_speaker", str(ref),
+                "--engine", "coqui",
+                "--config", str(config_file),
+            ],
+        )
+        assert result.exit_code == 0
+        assert "my_speaker" in result.output
+
+    def test_add_coqui_voice_without_reference_exits_1(self, config_file):
+        """Cloning engines require a reference wav."""
+        result = runner.invoke(
+            app,
+            [
+                "voices", "add", "my_speaker",
+                "--engine", "coqui",
+                "--config", str(config_file),
+            ],
+        )
+        assert result.exit_code == 1
+
+    def test_add_unknown_engine_exits_1(self, config_file):
+        result = runner.invoke(
+            app,
+            ["voices", "add", "test", "--engine", "unknownengine", "--config", str(config_file)],
+        )
+        assert result.exit_code == 1
+
+    def test_add_piper_voice_calls_download(self, tmp_path, config_file):
+        """voices add for piper should call PiperVoiceManager.add_voice (download)."""
+        from unittest.mock import patch, MagicMock
+        from hypnoai.resources.voice_manager import PiperVoiceManager
+        from hypnoai.tts.base import VoiceInfo
+
+        mock_voice = VoiceInfo(
+            id="en_US-ryan-medium", name="Ryan", language="en_US",
+            quality="medium", engine="piper",
+        )
+        with patch.object(PiperVoiceManager, "add_voice", return_value=mock_voice) as mock_add:
+            result = runner.invoke(
+                app,
+                [
+                    "voices", "add", "en_US-ryan-medium",
+                    "--engine", "piper",
+                    "--config", str(config_file),
+                ],
+            )
+        assert result.exit_code == 0
+        mock_add.assert_called_once_with("en_US-ryan-medium", None)
+
+    def test_add_kokoro_voice_exits_1(self, config_file):
+        """Preset engines (kokoro, bark) do not support custom voices."""
+        result = runner.invoke(
+            app,
+            ["voices", "add", "af_bella", "--engine", "kokoro", "--config", str(config_file)],
+        )
+        assert result.exit_code == 1
+        assert "no custom voice support" in result.output.lower() or "Error" in result.output
+
+
+class TestVoicesRemove:
+    def test_remove_piper_voice_found(self, tmp_path, config_with_voice):
+        config_path, voices_dir = config_with_voice
+        # en_US-amy-medium is already installed by config_with_voice fixture
+        result = runner.invoke(
+            app,
+            [
+                "voices", "remove", "en_US-amy-medium",
+                "--engine", "piper",
+                "--config", str(config_path),
+            ],
+        )
+        assert result.exit_code == 0
+        assert "Removed" in result.output
+
+    def test_remove_piper_voice_not_found_exits_1(self, config_file):
+        result = runner.invoke(
+            app,
+            [
+                "voices", "remove", "en_US-nobody-medium",
+                "--engine", "piper",
+                "--config", str(config_file),
+            ],
+        )
+        assert result.exit_code == 1
+
+    def test_remove_coqui_voice(self, tmp_path, config_file):
+        """Remove a .wav reference clip from coqui voices."""
+        # Write a wav into the voices dir (which config_file creates)
+        from hypnoai.config import Config
+        cfg = Config.load(config_file)
+        wav = cfg.voices_dir / "speaker1.wav"
+        wav.write_bytes(b"\x00" * 100)
+
+        result = runner.invoke(
+            app,
+            [
+                "voices", "remove", "speaker1",
+                "--engine", "coqui",
+                "--config", str(config_file),
+            ],
+        )
+        assert result.exit_code == 0
+        assert not wav.exists()
+
+    def test_remove_bark_voice_exits_1(self, config_file):
+        """Preset engines raise NotImplementedError on remove."""
+        result = runner.invoke(
+            app,
+            [
+                "voices", "remove", "v2/en_speaker_0",
+                "--engine", "bark",
+                "--config", str(config_file),
+            ],
+        )
+        assert result.exit_code == 1
 
 
 # ---------------------------------------------------------------------------
