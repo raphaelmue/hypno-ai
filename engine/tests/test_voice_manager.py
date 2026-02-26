@@ -1,11 +1,9 @@
 """Tests for the VoiceManager implementations."""
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from hypnoai.resources.voice_manager import CloneVoiceManager, PresetVoiceManager, PiperVoiceManager
 from hypnoai.tts.base import VoiceInfo
 

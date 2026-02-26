@@ -1,13 +1,10 @@
 """Tests for the paragraph render cache."""
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 import numpy as np
-import pytest
 import soundfile as sf
-
 from hypnoai.render.cache import RenderCache
 
 

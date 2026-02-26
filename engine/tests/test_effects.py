@@ -5,7 +5,6 @@ import sys
 
 import numpy as np
 import pytest
-
 from hypnoai.audio.effects import crossfade_concat, pitch_shift, warmth_eq
 
 

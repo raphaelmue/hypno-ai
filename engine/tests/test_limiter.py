@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
 from hypnoai.audio.limiter import brick_wall_limiter
 
 

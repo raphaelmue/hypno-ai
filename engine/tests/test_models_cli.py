@@ -5,11 +5,8 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-from typer.testing import CliRunner
-
 from hypnoai.cli import app
-from hypnoai.resources.model_downloader import ModelInfo
+from typer.testing import CliRunner
 
 runner = CliRunner()
 

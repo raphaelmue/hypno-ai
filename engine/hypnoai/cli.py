@@ -99,8 +99,8 @@ def _build_engine(engine: str, cfg: Config):
 def _build_voice_manager(engine: str, cfg: Config):
     """Build the appropriate VoiceManager for *engine*."""
     from .resources.voice_manager import CloneVoiceManager, PiperVoiceManager, PresetVoiceManager
-    from .tts.kokoro_engine import _KOKORO_VOICES, _KOKORO_LANGUAGES
-    from .tts.bark_engine import _BARK_ALL_SPEAKERS, _BARK_LANGUAGES
+    from .tts.kokoro_engine import _KOKORO_VOICES
+    from .tts.bark_engine import _BARK_ALL_SPEAKERS
     from .tts.base import VoiceInfo
 
     if engine == "piper":

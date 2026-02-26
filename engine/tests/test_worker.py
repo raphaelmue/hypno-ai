@@ -7,7 +7,6 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 import soundfile as sf
-
 from hypnoai.render.cache import RenderCache
 from hypnoai.render.worker import WorkItem, WorkerPool
 

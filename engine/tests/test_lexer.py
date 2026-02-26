@@ -1,9 +1,7 @@
 """Tests for the HypnoScript lexer."""
 from __future__ import annotations
 
-import pytest
-
-from hypnoai.parser.lexer import Token, TokenType, lex
+from hypnoai.parser.lexer import TokenType, lex
 
 
 def test_empty_source_returns_empty():

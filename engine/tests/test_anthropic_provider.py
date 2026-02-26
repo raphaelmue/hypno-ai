@@ -5,7 +5,6 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from hypnoai.ai.anthropic_provider import AnthropicProvider
 
 

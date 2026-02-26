@@ -1,13 +1,14 @@
 """Render pipeline — sequential (with prosody chain) and parallel paths (§6.3)."""
 from __future__ import annotations
 
-import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
 import soundfile as sf
 
+from .cache import RenderCache
+from .worker import WorkItem, WorkerPool, _apply_pitch_shift
 from ..parser.ast_nodes import (
     Block,
     CommentBlock,
@@ -20,8 +21,6 @@ from ..parser.ast_nodes import (
     VoiceChangeBlock,
 )
 from ..tts.base import TTSEngine
-from .cache import RenderCache
-from .worker import WorkItem, WorkerPool, _apply_pitch_shift
 
 # How many seconds of previous-paragraph audio to pass as prosody reference (§6.2)
 PROSODY_TAIL_SECONDS: float = 3.0

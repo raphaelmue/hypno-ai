@@ -4,11 +4,10 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import hypnoai.tts.coqui_engine as _ce
 import numpy as np
 import pytest
 import soundfile as sf
-
-import hypnoai.tts.coqui_engine as _ce
 from hypnoai.tts.coqui_engine import CoquiEngine
 
 

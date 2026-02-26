@@ -1,7 +1,7 @@
 """TTS engine protocol and shared data structures."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 

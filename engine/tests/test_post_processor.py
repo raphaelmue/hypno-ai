@@ -6,7 +6,6 @@ from pathlib import Path
 import numpy as np
 import pytest
 import soundfile as sf
-
 from hypnoai.audio.post_processor import PostProcessConfig, PostProcessor
 
 SR = 22050

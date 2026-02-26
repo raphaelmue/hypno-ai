@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
-
 from hypnoai.audio.normalize import normalize_loudness
 
 SR = 22050

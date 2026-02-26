@@ -1,8 +1,6 @@
 """Tests for the AI script post-processor."""
 from __future__ import annotations
 
-import pytest
-
 from hypnoai.ai.post_processor import (
     PostProcessResult,
     estimate_duration,

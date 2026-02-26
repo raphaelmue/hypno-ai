@@ -2,11 +2,9 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from hypnoai.resources.model_manager import (
     BarkModelManager,
     CoquiModelManager,
@@ -219,7 +217,7 @@ class TestStubManagers:
 
 class TestModelDownloaderBackwardCompat:
     def test_model_downloader_is_importable(self):
-        from hypnoai.resources.model_downloader import ModelDownloader, ModelInfo, ProgressCallback
+        from hypnoai.resources.model_downloader import ModelDownloader
         assert ModelDownloader is PiperModelManager
 
     def test_model_downloader_works_as_piper_manager(self, tmp_path):

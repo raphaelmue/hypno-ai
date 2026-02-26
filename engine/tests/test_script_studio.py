@@ -3,8 +3,6 @@ from __future__ import annotations
 
 from typing import Iterator
 
-import pytest
-
 from hypnoai.ai.base import ScriptGenerationRequest
 from hypnoai.ai.script_studio import ScriptStudio
 

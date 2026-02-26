@@ -1,14 +1,9 @@
 """Tests for the render pipeline."""
 from __future__ import annotations
 
-from pathlib import Path
-
 import numpy as np
 import pytest
 import soundfile as sf
-
-import soundfile as sf
-
 from hypnoai.parser.ast_nodes import (
     CommentBlock,
     PauseBlock,

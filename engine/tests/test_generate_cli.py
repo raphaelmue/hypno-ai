@@ -3,12 +3,11 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Iterator
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from typer.testing import CliRunner
-
 from hypnoai.cli import app
+from typer.testing import CliRunner
 
 runner = CliRunner()
 

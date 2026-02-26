@@ -15,7 +15,11 @@ dependencies = [
 
 [project.optional-dependencies]
 piper = ["piper-tts>=1.4.1", "pathvalidate>=3.3.1"]
-coqui = ["TTS>=0.22"]
+coqui = ["coqui-tts>=0.27.5"]
+kokoro = ["kokoro>=0.9.4"]
+styletts = ["styletts2>=0.1.6"]
+f5tts = ["f5-tts>=1.1.16"]
+bark = ["bark>=0.1.5"]
 pitch = ["librosa>=0.11.0"]
 dev = [
     "pytest>=9.0.2",

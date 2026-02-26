@@ -5,9 +5,8 @@ import json
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
-
 from hypnoai.cli import app
+from typer.testing import CliRunner
 
 runner = CliRunner()
 
@@ -202,7 +201,7 @@ class TestVoicesAdd:
 
     def test_add_piper_voice_calls_download(self, tmp_path, config_file):
         """voices add for piper should call PiperVoiceManager.add_voice (download)."""
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import patch
         from hypnoai.resources.voice_manager import PiperVoiceManager
         from hypnoai.tts.base import VoiceInfo
 

@@ -1,13 +1,12 @@
 """Audio post-processing pipeline — chains crossfade, EQ, normalization, limiter (§9)."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 import soundfile as sf
 
-from .assembler import assemble
 from .effects import crossfade_concat, warmth_eq
 from .limiter import brick_wall_limiter
 from .normalize import normalize_loudness

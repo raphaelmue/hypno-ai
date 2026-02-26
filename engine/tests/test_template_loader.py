@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import pytest
-
 from hypnoai.ai.template_loader import (
     AVAILABLE_TEMPLATES,
     SUPPORTED_LANGUAGES,

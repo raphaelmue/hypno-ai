@@ -2,10 +2,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
-
 from hypnoai.tts.piper_engine import PiperEngine
 from hypnoai.tts.voice_registry import EngineRegistry, VoiceRegistry
 

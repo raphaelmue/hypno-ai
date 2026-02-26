@@ -1,15 +1,14 @@
 """Concurrent paragraph worker pool (§6.3)."""
 from __future__ import annotations
 
-import shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import soundfile as sf
 
-from ..tts.base import TTSEngine
 from .cache import RenderCache
+from ..tts.base import TTSEngine
 
 
 @dataclass

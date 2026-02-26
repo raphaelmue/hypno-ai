@@ -3,8 +3,6 @@ from __future__ import annotations
 
 import warnings
 
-import pytest
-
 from hypnoai.parser.variables import find_variables, inject_variables
 
 

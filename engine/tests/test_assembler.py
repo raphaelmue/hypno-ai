@@ -6,7 +6,6 @@ from pathlib import Path
 import numpy as np
 import pytest
 import soundfile as sf
-
 from hypnoai.audio.assembler import assemble
 
 
