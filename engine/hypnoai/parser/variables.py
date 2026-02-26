@@ -21,7 +21,7 @@ def inject_variables(text: str, variables: dict[str, str]) -> str:
         key = match.group(1)
         if key not in variables:
             warnings.warn(
-                f"Undefined variable {{{{{{key}}}}}}: no value provided. "
+                "Undefined variable {{" + key + "}}: no value provided. "
                 "The placeholder will remain in the output.",
                 UserWarning,
                 stacklevel=3,

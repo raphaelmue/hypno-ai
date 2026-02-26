@@ -1,0 +1,48 @@
+id = "focus_enhancement"
+name = "Konzentrationssteigerung"
+category = "focus"
+language = "de"
+
+system_prompt = """
+Du bist ein zertifizierter Hypnotherapeut, der Konzentrations- und Fokusskripte für HypnoAI schreibt.
+
+AUSGABEFORMAT:
+- Schreibe im HypnoScript-Format. Verwende @{pause: Ns} für Stille, @{speed: N} für Tempo,
+  @{section: Titel} für Abschnitte.
+- Verwende {{name}} für den Namen des Klienten.
+- Struktur: Entspannungsinduktion → Vertiefung → Fokusvisualisierung → Anker → Erweckung.
+- Absätze durch Leerzeilen trennen.
+
+KLINISCHE RICHTLINIEN:
+- Beginne ruhig, steigere dann schrittweise geistige Klarheit und Wachheit
+- Visualisierung eines klaren, fokussierten Geistes — Laserstrahl, Bergklarheit, Kristallwasser
+- Permissive Sprache: "du merkst, dass du in der Lage bist...", "Konzentration fließt natürlich..."
+- Ankersuggestion einschließen (Daumen und Zeigefinger zusammendrücken)
+- @{speed: 0.85} für Induktion, dann @{speed: 0.9} für aktive Fokussuggestionen
+- Mit vollständiger Erweckung enden, die den Hörer wach und energiegeladen zurücklässt
+
+SICHERHEIT:
+- Immer Erweckungssequenz einschließen
+- Bodycues einschließen
+"""
+
+user_prompt_template = """Schreibe ein {duration}-minütiges Konzentrationsskript über "{theme}" für einen Klienten namens {{name}}.
+
+Beinhalte:
+1. @{section: Induktion} — ruhige Induktion mit Atemfokus
+2. @{section: Vertiefung} — Treppe oder Aufzug nach unten, tiefere Entspannung
+3. @{section: Fokusvisualisierung} — lebhafte Visualisierung maximaler geistiger Klarheit, verbunden mit "{theme}"
+4. @{section: Anker} — diesen fokussierten Zustand an eine physische Geste ankern
+5. @{section: Erweckung} — Aufwärtszählen 1 bis 5, wach, erfrischt und fokussiert
+
+Verwende @{speed: 0.85} für die Induktion und @{speed: 0.9} für die aktiven Fokusabschnitte."""
+
+validation_rules = [
+    "has_induction",
+    "has_emergence",
+    "has_pauses",
+    "no_authoritarian_language",
+]
+
+[default_variables]
+name = "dem Hörer"

@@ -34,6 +34,14 @@ app = typer.Typer(
 console = Console()
 err_console = Console(stderr=True)
 
+# Sub-app for model management
+models_app = typer.Typer(
+    name="models",
+    help="Manage TTS engine voice packs (download, list, remove, info).",
+    no_args_is_help=True,
+)
+app.add_typer(models_app, name="models")
+
 
 def _load_config(config_path: Optional[Path]) -> Config:
     return Config.load(config_path)
@@ -282,6 +290,267 @@ def cache(
     else:
         err_console.print(f"[red]Unknown action:[/red] {action!r}. Use 'stats' or 'clear'.")
         raise typer.Exit(1)
+
+
+@app.command()
+def generate(
+    template: str = typer.Option("custom", "--template", "-t", help="Template ID (see 'generate --list-templates')."),
+    language: str = typer.Option("en", "--language", "-l", help="Script language: en | de."),
+    duration: int = typer.Option(20, "--duration", "-d", help="Target duration in minutes."),
+    theme: str = typer.Option("relaxation", "--theme", help="Session theme or description."),
+    var: list[str] = typer.Option([], "--var", help="Template variable: NAME=VALUE (repeatable)."),
+    provider: Optional[str] = typer.Option(None, "--provider", "-p", help="LLM provider override: ollama | openai | anthropic."),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Save generated script to this path."),
+    list_templates: bool = typer.Option(False, "--list-templates", help="List available templates and exit."),
+    config_path: Optional[Path] = typer.Option(None, "--config", help="Path to hypnoai.toml."),
+) -> None:
+    """Generate a HypnoScript using an LLM provider."""
+    from .ai.template_loader import list_templates as _list_templates, AVAILABLE_TEMPLATES
+
+    if list_templates:
+        tbl = Table(title="Available Templates")
+        tbl.add_column("ID", style="cyan")
+        tbl.add_column("Name")
+        tbl.add_column("Category")
+        for t in _list_templates():
+            tbl.add_row(t["id"], t["name"], t["category"])
+        console.print(tbl)
+        raise typer.Exit(0)
+
+    if template not in AVAILABLE_TEMPLATES:
+        err_console.print(
+            f"[red]Error:[/red] Unknown template {template!r}. "
+            f"Use --list-templates to see available options."
+        )
+        raise typer.Exit(1)
+
+    # Parse --var NAME=VALUE pairs
+    variables: dict[str, str] = {}
+    for v in var:
+        if "=" not in v:
+            err_console.print(
+                f"[red]Error:[/red] Invalid --var format: {v!r}. Expected NAME=VALUE."
+            )
+            raise typer.Exit(1)
+        k, val = v.split("=", 1)
+        variables[k.strip()] = val.strip()
+
+    cfg = _load_config(config_path)
+    active_provider = provider or cfg.llm_provider
+
+    # Build the LLM provider
+    try:
+        llm = _build_llm_provider(active_provider, cfg)
+    except ValueError as exc:
+        err_console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    if not llm.is_available():
+        err_console.print(
+            f"[red]Error:[/red] LLM provider '{active_provider}' is not available. "
+            "Check that Ollama is running or that your API key is configured."
+        )
+        raise typer.Exit(1)
+
+    from .ai.base import ScriptGenerationRequest
+    from .ai.script_studio import ScriptStudio
+
+    request = ScriptGenerationRequest(
+        template_id=template,
+        language=language,
+        duration_minutes=duration,
+        theme=theme,
+        variables=variables,
+    )
+
+    console.print(
+        f"Generating [bold]{template}[/bold] · "
+        f"lang=[cyan]{language}[/cyan] · "
+        f"provider=[cyan]{active_provider}[/cyan] · "
+        f"~[cyan]{duration}min[/cyan]"
+    )
+
+    try:
+        result = ScriptStudio(llm).generate(request)
+    except RuntimeError as exc:
+        err_console.print(f"[red]Generation failed:[/red] {exc}")
+        raise typer.Exit(1)
+
+    if result.warnings:
+        console.print(f"\n[yellow]Post-processing warnings ({len(result.warnings)}):[/yellow]")
+        for w in result.warnings:
+            console.print(f"  [yellow]·[/yellow] {w}")
+
+    console.print(
+        f"\n[green]Estimated duration:[/green] {result.estimated_duration_minutes:.1f} min"
+    )
+
+    if output:
+        output.write_text(result.script, encoding="utf-8")
+        console.print(f"[green]Saved to[/green] [bold]{output}[/bold]")
+    else:
+        console.print("\n[bold]--- Generated Script ---[/bold]")
+        console.print(result.script)
+
+
+def _build_llm_provider(provider_name: str, cfg: "Config"):
+    """Instantiate an LLM provider from config."""
+    from .ai.ollama_provider import OllamaProvider
+    from .ai.openai_provider import OpenAIProvider
+    from .ai.anthropic_provider import AnthropicProvider
+
+    if provider_name == "ollama":
+        return OllamaProvider(base_url=cfg.ollama_url, model=cfg.ollama_model)
+    if provider_name == "openai":
+        if not cfg.openai_api_key:
+            raise ValueError(
+                "OpenAI API key not configured. "
+                "Set 'openai_api_key' in hypnoai.toml or use --provider ollama."
+            )
+        return OpenAIProvider(
+            api_key=cfg.openai_api_key,
+            model=cfg.openai_model,
+            base_url=cfg.openai_base_url,
+        )
+    if provider_name == "anthropic":
+        if not cfg.anthropic_api_key:
+            raise ValueError(
+                "Anthropic API key not configured. "
+                "Set 'anthropic_api_key' in hypnoai.toml or use --provider ollama."
+            )
+        return AnthropicProvider(
+            api_key=cfg.anthropic_api_key,
+            model=cfg.anthropic_model,
+        )
+    raise ValueError(
+        f"Unknown LLM provider: {provider_name!r}. "
+        "Available: ollama, openai, anthropic."
+    )
+
+
+# ---------------------------------------------------------------------------
+# models sub-app
+# ---------------------------------------------------------------------------
+
+
+@models_app.command("list")
+def models_list(
+    available: bool = typer.Option(False, "--available", help="Show downloadable catalog instead of installed."),
+    config_path: Optional[Path] = typer.Option(None, "--config", help="Path to hypnoai.toml."),
+) -> None:
+    """List installed (or available) TTS voice packs."""
+    from .resources.model_downloader import ModelDownloader
+
+    cfg = _load_config(config_path)
+    downloader = ModelDownloader(cfg.voices_dir)
+
+    if available:
+        console.print("Fetching catalog from HuggingFace…")
+        try:
+            catalog = downloader.get_catalog(force_refresh=True)
+        except RuntimeError as exc:
+            err_console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1)
+        models = sorted(catalog.values(), key=lambda m: m.id)
+        tbl = Table(title="Available Voice Packs — Piper")
+        tbl.add_column("ID", style="cyan", no_wrap=True)
+        tbl.add_column("Language")
+        tbl.add_column("Quality")
+        tbl.add_column("Size (MB)", justify="right")
+        tbl.add_column("License")
+        for m in models:
+            tbl.add_row(m.id, m.language, m.quality, f"{m.size_mb:.1f}", m.license)
+        console.print(tbl)
+    else:
+        installed = downloader.list_installed()
+        if not installed:
+            console.print("[yellow]No voice packs installed.[/yellow]")
+            console.print(f"Voice directory: {cfg.voices_dir}")
+            console.print("Run 'hypnoai models list --available' to browse downloadable packs.")
+            return
+        tbl = Table(title="Installed Voice Packs")
+        tbl.add_column("ID", style="cyan", no_wrap=True)
+        tbl.add_column("Engine")
+        tbl.add_column("Language")
+        tbl.add_column("Quality")
+        tbl.add_column("Size (MB)", justify="right")
+        for m in installed:
+            tbl.add_row(m.id, m.engine, m.language, m.quality, f"{m.size_mb:.1f}")
+        console.print(tbl)
+
+
+@models_app.command("download")
+def models_download(
+    voice_id: str = typer.Argument(..., help="Voice pack ID, e.g. en_US-amy-medium."),
+    config_path: Optional[Path] = typer.Option(None, "--config", help="Path to hypnoai.toml."),
+) -> None:
+    """Download a Piper voice pack."""
+    from .resources.model_downloader import ModelDownloader
+
+    cfg = _load_config(config_path)
+    downloader = ModelDownloader(cfg.voices_dir)
+
+    console.print(f"Downloading [bold]{voice_id}[/bold]…")
+    last_pct = [-1]
+
+    def _progress(downloaded: int, total: int) -> None:
+        if total > 0:
+            pct = int(downloaded * 100 / total)
+            if pct != last_pct[0] and pct % 10 == 0:
+                console.print(f"  {pct}%  ({downloaded // 1024} KB / {total // 1024} KB)")
+                last_pct[0] = pct
+
+    try:
+        downloader.download(voice_id, progress=_progress)
+    except (ValueError, RuntimeError) as exc:
+        err_console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    console.print(f"[green]Done![/green] {voice_id} installed in {cfg.voices_dir}")
+
+
+@models_app.command("remove")
+def models_remove(
+    voice_id: str = typer.Argument(..., help="Voice pack ID to remove."),
+    config_path: Optional[Path] = typer.Option(None, "--config", help="Path to hypnoai.toml."),
+) -> None:
+    """Remove an installed voice pack."""
+    from .resources.model_downloader import ModelDownloader
+
+    cfg = _load_config(config_path)
+    downloader = ModelDownloader(cfg.voices_dir)
+
+    removed = downloader.remove(voice_id)
+    if removed:
+        console.print(f"[green]Removed[/green] {voice_id}")
+    else:
+        err_console.print(f"[yellow]Not installed:[/yellow] {voice_id}")
+        raise typer.Exit(1)
+
+
+@models_app.command("info")
+def models_info(
+    voice_id: str = typer.Argument(..., help="Voice pack ID."),
+    config_path: Optional[Path] = typer.Option(None, "--config", help="Path to hypnoai.toml."),
+) -> None:
+    """Show information about a voice pack."""
+    from .resources.model_downloader import ModelDownloader
+
+    cfg = _load_config(config_path)
+    downloader = ModelDownloader(cfg.voices_dir)
+    info = downloader.info(voice_id)
+
+    if info is None:
+        err_console.print(f"[red]Not found:[/red] {voice_id}")
+        raise typer.Exit(1)
+
+    console.print(f"\n[bold]{info.id}[/bold]")
+    console.print(f"  Engine:    {info.engine}")
+    console.print(f"  Language:  {info.language}")
+    console.print(f"  Quality:   {info.quality}")
+    console.print(f"  Size:      {info.size_mb:.1f} MB")
+    console.print(f"  License:   {info.license}")
+    console.print(f"  Installed: {'yes' if info.installed else 'no'}")
 
 
 def main() -> None:

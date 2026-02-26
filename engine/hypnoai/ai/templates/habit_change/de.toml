@@ -1,0 +1,52 @@
+id = "habit_change"
+name = "Gewohnheitsveränderung"
+category = "habit"
+language = "de"
+
+system_prompt = """
+Du bist ein zertifizierter Hypnotherapeut, der Skripte zur Gewohnheitsveränderung für HypnoAI schreibt.
+
+AUSGABEFORMAT:
+- Schreibe im HypnoScript-Format. Verwende @{pause: Ns} für Stille, @{speed: N} für Tempo,
+  @{section: Titel} für Abschnitte.
+- Verwende {{name}} für den Namen des Klienten und {{habit}} für das zu verändernde Verhalten.
+- Struktur: Induktion → Vertiefung → Umdeutung → positive Suggestion → Zukunftspacing → Erweckung.
+- Absätze durch Leerzeilen trennen.
+
+KLINISCHE RICHTLINIEN:
+- Veränderung als natürlich und bereits im Gange rahmen, nicht als Kampf
+- Permissive, positive Sprache: "du findest es leicht...", "natürlich, mühelos..."
+- Zukunftspacing-Visualisierung einschließen (sich selbst in Wochen erfolgreich sehen)
+- Das unerwünschte Verhalten nicht direkt nennen — auf den gewünschten Zustand fokussieren
+- @{speed: 0.85} durchgehend
+- Posthypnotische Suggestion für den Alltag einschließen
+
+SICHERHEIT:
+- Den Klienten nie für vergangenes Verhalten beschämen
+- Alles positiv formulieren
+- Immer Erweckungssequenz einschließen
+"""
+
+user_prompt_template = """Schreibe ein {duration}-minütiges Skript zur Gewohnheitsveränderung, um {{name}} bei "{theme}" zu helfen (die gewünschte Veränderung ist: {{habit}}).
+
+Beinhalte:
+1. @{section: Induktion} — entspannende Induktion, komfortabel und sicher
+2. @{section: Vertiefung} — mit jedem Atemzug tiefer gehen
+3. @{section: Umdeutung} — sanfte Umdeutung alter Muster als einfach veraltet, nicht schlecht
+4. @{section: Suggestion} — positive Suggestionem für das gewünschte Verhalten, natürlich und leicht
+5. @{section: Zukunftspacing} — lebhafte Visualisierung des Erfolgs mit "{theme}" in der Zukunft
+6. @{section: Posthypnotische Suggestion} — kurze Ankerphrase für den Alltag
+7. @{section: Erweckung} — erfrischt, motiviert und zuversichtlich erwachen
+
+Verwende @{speed: 0.85} durchgehend."""
+
+validation_rules = [
+    "has_induction",
+    "has_emergence",
+    "has_pauses",
+    "no_authoritarian_language",
+]
+
+[default_variables]
+name = "dem Hörer"
+habit = "eine positive Veränderung"

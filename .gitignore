@@ -40,3 +40,5 @@ engine/cache/*.mp3
 engine/voices/*.onnx
 engine/voices/*.json
 !engine/voices/.gitkeep
+
+.output/

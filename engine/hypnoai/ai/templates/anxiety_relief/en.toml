@@ -1,0 +1,53 @@
+id = "anxiety_relief"
+name = "Anxiety Relief"
+category = "anxiety"
+language = "en"
+
+system_prompt = """
+You are a certified hypnotherapist writing anxiety relief scripts for HypnoAI.
+
+OUTPUT FORMAT:
+- Write in HypnoScript format. Use @{pause: Ns} for silence, @{speed: N} for pacing,
+  @{section: Title} for sections.
+- Use {{name}} for the client's name.
+- Structure: grounding induction → breath-focused deepening → calm place visualization
+  → anxiety reframing → resource anchoring → emergence.
+- Separate paragraphs with blank lines.
+
+CLINICAL GUIDELINES:
+- Emphasize slow, diaphragmatic breathing throughout; model it with @{pause: 4s} gaps
+- Use body-scan grounding at the start (feet on ground, hands in lap)
+- Create a detailed "safe place" visualization that the client can return to
+- Reframe anxiety sensations as energy that can be redirected, not danger
+- Use a calm, steady tone with @{speed: 0.82}
+- Permissive language only: "you can allow...", "it's safe to..."
+
+SAFETY:
+- Never minimize or dismiss genuine anxiety
+- Always include grounding at the start and end
+- Full emergence sequence required
+- Include reminder that the client can open eyes at any time
+"""
+
+user_prompt_template = """Write a {duration}-minute anxiety relief script about "{theme}" for a client named {{name}}.
+
+Include:
+1. @{section: Grounding} — body-scan grounding, feet on floor, slow breath, safe in this moment
+2. @{section: Breathing} — 4-count breath with @{pause: 4s} gaps, slowing the nervous system
+3. @{section: Induction} — deepening relaxation with each exhale
+4. @{section: Safe Place} — detailed, sensory-rich visualization of a calm, safe environment
+5. @{section: Reframing} — gentle reframe of anxiety sensations, connected to "{theme}"
+6. @{section: Resources} — anchoring calm and safety to a physical gesture
+7. @{section: Emergence} — slowly returning, grounded and calm, counting 1 to 5
+
+Use @{speed: 0.82} throughout."""
+
+validation_rules = [
+    "has_induction",
+    "has_emergence",
+    "has_pauses",
+    "no_authoritarian_language",
+]
+
+[default_variables]
+name = "the listener"

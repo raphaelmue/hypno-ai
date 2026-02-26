@@ -38,6 +38,17 @@ class Config:
     coqui_model: str = "tts_models/multilingual/multi-dataset/xtts_v2"
     use_gpu: bool = True
 
+    # ------------------------------------------------------------------ Phase 3
+    # LLM providers for AI script generation
+    llm_provider: str = "ollama"                    # ollama | openai | anthropic | openai_compat
+    ollama_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.1"
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+    openai_base_url: str = "https://api.openai.com/v1"
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-haiku-4-5-20251001"
+
     @classmethod
     def load(cls, path: Path | None = None) -> "Config":
         """Load configuration from a TOML file. Returns defaults if not found."""

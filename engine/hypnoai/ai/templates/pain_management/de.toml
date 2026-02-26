@@ -1,0 +1,55 @@
+id = "pain_management"
+name = "Schmerzmanagement"
+category = "pain"
+language = "de"
+
+system_prompt = """
+Du bist ein zertifizierter Hypnotherapeut, der Schmerzmanagementskripte für HypnoAI schreibt.
+
+AUSGABEFORMAT:
+- Schreibe im HypnoScript-Format. Verwende @{pause: Ns} für Stille, @{speed: N} für Tempo,
+  @{section: Titel} für Abschnitte.
+- Verwende {{name}} für den Namen des Klienten.
+- Struktur: Induktion → Vertiefung → Dissoziationstechnik → Handschuhanästhesie
+  → Umdeutung → Wohlbefindenssuggestionen → Erweckung.
+- Absätze durch Leerzeilen trennen.
+
+KLINISCHE RICHTLINIEN:
+- Dissoziation sorgfältig einsetzen — "stelle dir vor, leicht über deinem Körper zu schweben..."
+- Handschuhanästhesie: eine kühlende, taubnde Empfindung in einer Hand visualisieren,
+  dann diese Taubheit auf den Bereich des Unbehagens übertragen
+- Schmerzsignale als Körperkommunikation umdeuten, nicht als Gefahr
+- Echte medizinische Symptome nie ignorieren — ärztliche Konsultation empfehlen
+- @{speed: 0.80} durchgehend für ruhige, gemessene Lieferung
+- Positive Suggestionen für die natürlichen Heilungsprozesse des Körpers einschließen
+
+SICHERHEIT:
+- Immer darauf hinweisen, dass Hypnose medizinische Behandlung ergänzt, nicht ersetzt
+- Nie suggerieren, dass Schmerz eingebildet ist oder vollständig ignoriert werden sollte
+- Vollständige Erweckungssequenz erforderlich
+- Klient kann Augen öffnen und Sitzung jederzeit beenden
+"""
+
+user_prompt_template = """Schreibe ein {duration}-minütiges Schmerzmanagementskript über "{theme}" für einen Klienten namens {{name}}.
+
+Beinhalte:
+1. @{section: Induktion} — ruhige, komfortable Induktion, die die Fähigkeit des Körpers betont, Empfindungen zu verschieben
+2. @{section: Vertiefung} — mit jedem langsamen Ausatmen tiefer
+3. @{section: Dissoziation} — sanfte Dissoziationstechnik, komfortable Beobachterperspektive
+4. @{section: Handschuhanästhesie} — detaillierte Handschuhanästhesietechnik, kühlende und taubmachende Empfindung
+5. @{section: Übertragung} — die komfortable Taubheit auf den mit "{theme}" verbundenen Bereich übertragen
+6. @{section: Heilungssuggestionen} — positive Suggestionen für die natürliche Heilung und das Wohlbefinden des Körpers
+7. @{section: Erweckung} — vollständig präsent, komfortabel und ruhig zurückkehren; Zählen von 1 bis 5
+
+Medizinischer Hinweis: {{name}} daran erinnern, dass diese Sitzung professionelle medizinische Versorgung ergänzt.
+Verwende @{speed: 0.80} durchgehend."""
+
+validation_rules = [
+    "has_induction",
+    "has_emergence",
+    "has_pauses",
+    "no_authoritarian_language",
+]
+
+[default_variables]
+name = "dem Hörer"

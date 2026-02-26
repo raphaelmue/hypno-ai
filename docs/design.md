@@ -226,7 +226,7 @@ HypnoAI is built on the principle that **no concrete model or provider should be
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                  HypnoAI Application                     │
+│                  HypnoAI Application                    │
 ├──────────────────┬──────────────────┬───────────────────┤
 │   TTSEngine      │   LLMProvider    │   AudioBackend    │
 │   (Protocol)     │   (Protocol)     │   (Protocol)      │

@@ -41,6 +41,16 @@ def test_undefined_variable_emits_warning():
     assert result == "Hello {{name}}!"  # unchanged
 
 
+def test_undefined_variable_warning_contains_variable_name():
+    """Warning message must show the actual variable name, not the literal text 'key'."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        inject_variables("Hello {{myvar}}!", {})
+    messages = [str(w.message) for w in caught]
+    assert any("myvar" in m for m in messages), f"Variable name missing from: {messages}"
+    assert not any("{{{key}}}" in m for m in messages), "Bug: literal 'key' shown instead of variable name"
+
+
 def test_undefined_variable_leaves_placeholder():
     with warnings.catch_warnings(record=True):
         warnings.simplefilter("always")

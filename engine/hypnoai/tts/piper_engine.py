@@ -72,7 +72,14 @@ class PiperEngine:
             "--noise_w", "0.8",
         ]
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        result = subprocess.run(cmd, input=text.encode("utf-8"), capture_output=True)
+        try:
+            result = subprocess.run(cmd, input=text.encode("utf-8"), capture_output=True)
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"Piper executable not found: {self.piper_bin!r}. "
+                "Install piper-tts ('pip install piper-tts') or set 'piper_bin' "
+                "in hypnoai.toml to the full path of the piper binary."
+            )
         if result.returncode != 0:
             raise RuntimeError(
                 f"Piper failed (exit {result.returncode}): "

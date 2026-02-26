@@ -74,6 +74,16 @@ class TestPiperEngine:
             engine.generate("text", "en_US-amy-medium", 1.0, tmp_path / "out.wav")
         assert "en_US-amy-medium" in str(exc_info.value)
 
+    def test_generate_piper_binary_not_found(self, tmp_path):
+        """When the piper binary itself is missing, raise a helpful FileNotFoundError."""
+        # Create a valid model file so we pass the model-exists check
+        voice_id = "en_US-amy-medium"
+        (tmp_path / f"{voice_id}.onnx").write_bytes(b"\x00")
+        (tmp_path / f"{voice_id}.onnx.json").write_text("{}")
+        engine = PiperEngine(voices_dir=tmp_path, piper_bin="piper_does_not_exist_xyz")
+        with pytest.raises(FileNotFoundError, match="Piper executable not found"):
+            engine.generate("hello", voice_id, 1.0, tmp_path / "out.wav")
+
     def test_size_mb_computed(self, tmp_path):
         data = b"\x00" * (2 * 1024 * 1024)  # 2 MiB
         (tmp_path / "en_US-amy-medium.onnx").write_bytes(data)
