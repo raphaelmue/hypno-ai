@@ -5,13 +5,15 @@ import { rpcCall } from "../hooks/useRpc";
 // Helpers
 // ---------------------------------------------------------------------------
 
-function setTauri(invoke: ReturnType<typeof vi.fn> | undefined) {
-  if (invoke === undefined) {
-    delete (window as unknown as Record<string, unknown>)["__TAURI__"];
+function setElectronAPI(
+  impl:
+    | { rpcCall: ReturnType<typeof vi.fn>; rpcStream: ReturnType<typeof vi.fn> }
+    | undefined
+) {
+  if (impl === undefined) {
+    delete (window as unknown as Record<string, unknown>)["electronAPI"];
   } else {
-    (window as unknown as Record<string, unknown>)["__TAURI__"] = {
-      core: { invoke },
-    };
+    (window as unknown as Record<string, unknown>)["electronAPI"] = impl;
   }
 }
 
@@ -21,65 +23,67 @@ function setTauri(invoke: ReturnType<typeof vi.fn> | undefined) {
 
 describe("rpcCall", () => {
   beforeEach(() => {
-    setTauri(vi.fn().mockResolvedValue({}));
-  });
-
-  it("calls window.__TAURI__.core.invoke with the rpc_call command", async () => {
-    const mockInvoke = vi.fn().mockResolvedValue({ ok: true });
-    setTauri(mockInvoke);
-
-    await rpcCall("script.lint", { path: "/tmp/test.hypno" });
-
-    expect(mockInvoke).toHaveBeenCalledWith("rpc_call", {
-      method: "script.lint",
-      params: { path: "/tmp/test.hypno" },
+    setElectronAPI({
+      rpcCall: vi.fn().mockResolvedValue({}),
+      rpcStream: vi.fn().mockResolvedValue(undefined),
     });
   });
 
-  it("returns the value resolved by invoke", async () => {
+  it("calls window.electronAPI.rpcCall with method and params", async () => {
+    const mockRpcCall = vi.fn().mockResolvedValue({ ok: true });
+    setElectronAPI({ rpcCall: mockRpcCall, rpcStream: vi.fn().mockResolvedValue(undefined) });
+
+    await rpcCall("script.lint", { path: "/tmp/test.hypno" });
+
+    expect(mockRpcCall).toHaveBeenCalledWith("script.lint", {
+      path: "/tmp/test.hypno",
+    });
+  });
+
+  it("returns the value resolved by rpcCall", async () => {
     const payload = { voices: [{ id: "af", name: "Af" }] };
-    setTauri(vi.fn().mockResolvedValue(payload));
+    setElectronAPI({
+      rpcCall: vi.fn().mockResolvedValue(payload),
+      rpcStream: vi.fn().mockResolvedValue(undefined),
+    });
 
     const result = await rpcCall("voices.list", { engine: "kokoro" });
     expect(result).toEqual(payload);
   });
 
   it("uses an empty params object when none are provided", async () => {
-    const mockInvoke = vi.fn().mockResolvedValue({});
-    setTauri(mockInvoke);
+    const mockRpcCall = vi.fn().mockResolvedValue({});
+    setElectronAPI({ rpcCall: mockRpcCall, rpcStream: vi.fn().mockResolvedValue(undefined) });
 
     await rpcCall("models.status");
 
-    expect(mockInvoke).toHaveBeenCalledWith("rpc_call", {
-      method: "models.status",
-      params: {},
-    });
+    expect(mockRpcCall).toHaveBeenCalledWith("models.status", {});
   });
 
-  it("throws when Tauri is not available", async () => {
-    setTauri(undefined);
+  it("throws when Electron API is not available", async () => {
+    setElectronAPI(undefined);
     await expect(rpcCall("script.lint", {})).rejects.toThrow(
-      /Tauri not available/
+      /Electron API not available/
     );
   });
 
-  it("propagates rejections from invoke", async () => {
-    setTauri(vi.fn().mockRejectedValue(new Error("sidecar crashed")));
+  it("propagates rejections from rpcCall", async () => {
+    setElectronAPI({
+      rpcCall: vi.fn().mockRejectedValue(new Error("sidecar crashed")),
+      rpcStream: vi.fn().mockResolvedValue(undefined),
+    });
     await expect(rpcCall("render.start", {})).rejects.toThrow(
       "sidecar crashed"
     );
   });
 
   it("passes arbitrary params through unchanged", async () => {
-    const mockInvoke = vi.fn().mockResolvedValue({});
-    setTauri(mockInvoke);
+    const mockRpcCall = vi.fn().mockResolvedValue({});
+    setElectronAPI({ rpcCall: mockRpcCall, rpcStream: vi.fn().mockResolvedValue(undefined) });
 
     const params = { engine: "coqui", voice: "speaker1", speed: 0.9 };
     await rpcCall("render.preview", params);
 
-    expect(mockInvoke).toHaveBeenCalledWith("rpc_call", {
-      method: "render.preview",
-      params,
-    });
+    expect(mockRpcCall).toHaveBeenCalledWith("render.preview", params);
   });
 });

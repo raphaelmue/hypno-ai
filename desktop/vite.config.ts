@@ -5,16 +5,13 @@ import react from "@vitejs/plugin-react";
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
-  // Prevent vite from obscuring Rust errors
   clearScreen: false,
-  // Tauri expects a fixed port; fail if it's not available
+  // Electron loads dist/index.html from the filesystem in production;
+  // './' ensures asset paths are relative rather than absolute.
+  base: process.env.NODE_ENV === "production" ? "./" : "/",
   server: {
     port: 1420,
     strictPort: true,
-    watch: {
-      // Ignore Rust files so only frontend changes trigger HMR
-      ignored: ["**/src-tauri/**"],
-    },
   },
   test: {
     environment: "jsdom",

@@ -1,65 +1,48 @@
 /**
  * JSON-RPC bridge between the React frontend and the Python sidecar.
  *
- * In the Tauri app, the Rust backend manages the sidecar process and exposes
- * two Tauri commands:
- *   - `rpc_call(method, params)` → Promise<result>
- *   - `rpc_stream(method, params, onChunk)` → async streaming via Tauri channels
- *
- * In non-Tauri (browser dev) mode, calls are stubbed so the UI still renders.
+ * In the Electron app, the Node.js main process manages the sidecar and
+ * exposes two IPC handlers via the preload script's `window.electronAPI`:
+ *   - `rpcCall(method, params)` → Promise<result>
+ *   - `rpcStream(method, params, onChunk)` → Promise<void> (streaming)
  */
 
 import { useCallback } from "react";
 
 // ---------------------------------------------------------------------------
-// Tauri interop
+// Electron interop
 // ---------------------------------------------------------------------------
 
 declare global {
   interface Window {
-    __TAURI__?: {
-      core: {
-        invoke: <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
-      };
+    electronAPI?: {
+      rpcCall: (method: string, params: Record<string, unknown>) => Promise<unknown>;
+      rpcStream: (
+        method: string,
+        params: Record<string, unknown>,
+        onChunk: (chunk: Record<string, unknown>) => void
+      ) => Promise<void>;
     };
   }
 }
 
-const isTauri = () => typeof window !== "undefined" && !!window.__TAURI__;
-
-async function tauriInvoke<T>(
-  command: string,
-  args: Record<string, unknown>
-): Promise<T> {
-  if (!isTauri()) {
-    throw new Error(`Tauri not available (running in browser). Command: ${command}`);
-  }
-  return window.__TAURI__!.core.invoke<T>(command, args);
-}
-
-// ---------------------------------------------------------------------------
-// RPC call (request → single response)
-// ---------------------------------------------------------------------------
+const isElectron = () => typeof window !== "undefined" && !!window.electronAPI;
 
 export async function rpcCall<T = unknown>(
   method: string,
   params: Record<string, unknown> = {}
 ): Promise<T> {
-  return tauriInvoke<T>("rpc_call", { method, params });
+  if (!isElectron()) throw new Error(`Electron API not available (running in browser). Method: ${method}`);
+  return window.electronAPI!.rpcCall(method, params) as Promise<T>;
 }
-
-// ---------------------------------------------------------------------------
-// RPC stream (request → multiple chunks until done=true)
-// ---------------------------------------------------------------------------
 
 export async function rpcStream(
   method: string,
   params: Record<string, unknown>,
   onChunk: (chunk: Record<string, unknown>) => void
 ): Promise<void> {
-  // Tauri channels are used for streaming; the Rust command sends events on a
-  // channel and resolves when done=true is received.
-  await tauriInvoke<void>("rpc_stream", { method, params, onChunk });
+  if (!isElectron()) throw new Error(`Electron API not available (running in browser). Method: ${method}`);
+  return window.electronAPI!.rpcStream(method, params, onChunk);
 }
 
 // ---------------------------------------------------------------------------

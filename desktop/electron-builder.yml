@@ -1,0 +1,19 @@
+appId: ai.hypnoai.app
+productName: HypnoAI
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - node_modules/**/*
+  - package.json
+directories:
+  output: release
+extraResources:
+  - from: "../../engine/dist/hypnoai-sidecar"
+    to: "hypnoai-sidecar"
+mac:
+  category: public.app-category.utilities
+linux:
+  category: AudioVideo
+win:
+  target:
+    - nsis
