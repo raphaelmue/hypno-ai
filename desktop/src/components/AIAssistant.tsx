@@ -3,7 +3,7 @@
  * Slide-out panel with session type, duration, theme, provider, and Generate button.
  * Streams output directly into the parent's script editor.
  */
-import React, { useState } from "react";
+import { useState } from "react";
 import type { AIGenerateParams } from "../types";
 
 interface Props {

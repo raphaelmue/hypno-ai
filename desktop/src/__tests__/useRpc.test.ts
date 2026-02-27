@@ -7,9 +7,9 @@ import { rpcCall } from "../hooks/useRpc";
 
 function setTauri(invoke: ReturnType<typeof vi.fn> | undefined) {
   if (invoke === undefined) {
-    delete (window as Record<string, unknown>)["__TAURI__"];
+    delete (window as unknown as Record<string, unknown>)["__TAURI__"];
   } else {
-    (window as Record<string, unknown>)["__TAURI__"] = {
+    (window as unknown as Record<string, unknown>)["__TAURI__"] = {
       core: { invoke },
     };
   }

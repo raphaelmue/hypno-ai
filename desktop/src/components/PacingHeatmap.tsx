@@ -6,7 +6,6 @@
  * Red = >100 WPM (too fast)
  * Blue = <60 WPM (very slow — fine for deep induction)
  */
-import React from "react";
 import type { PacingEntry } from "../types";
 
 interface Props {

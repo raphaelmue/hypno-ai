@@ -2,7 +2,6 @@
  * Voice & Render Settings panel — engine/voice dropdowns, speed/pitch sliders,
  * progress bar, and Render/Preview buttons.
  */
-import React, { useEffect, useRef, useState } from "react";
 import type { RenderProgress, RenderSettings, VoiceInfo } from "../types";
 
 interface Props {

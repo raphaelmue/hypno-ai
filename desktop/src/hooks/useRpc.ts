@@ -68,6 +68,7 @@ export async function rpcStream(
 
 import type {
   AIChunk,
+  AIGenerateParams,
   DownloadProgress,
   LintResult,
   ModelList,
@@ -161,10 +162,10 @@ export function useRpc() {
 
   const generateScript = useCallback(
     (
-      params: Record<string, unknown>,
+      params: AIGenerateParams,
       onChunk: (chunk: AIChunk) => void
     ): Promise<void> => {
-      return rpcStream("ai.generate", params, onChunk as (chunk: Record<string, unknown>) => void);
+      return rpcStream("ai.generate", params as unknown as Record<string, unknown>, onChunk as (chunk: Record<string, unknown>) => void);
     },
     []
   );

@@ -1,7 +1,6 @@
 /**
  * Application sidebar — session manager, variables panel, and model quick-status.
  */
-import React from "react";
 import type { LintResult, ModelStatus, SessionVariables } from "../types";
 import { VariablesPanel } from "./VariablesPanel";
 

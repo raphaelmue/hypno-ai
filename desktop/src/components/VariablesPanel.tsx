@@ -2,7 +2,6 @@
  * Variables Panel — key-value fields for {{name}}, {{safe_place}}, etc.
  * Automatically populated from the script's variable references (via lint result).
  */
-import React from "react";
 import type { LintResult, SessionVariables } from "../types";
 
 interface Props {

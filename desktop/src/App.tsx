@@ -9,7 +9,7 @@
  * - Model manager (full-screen panel)
  * - First-launch wizard (rendered as Model Manager with isFirstLaunch=true)
  */
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AIAssistant,
   ModelManager,
@@ -142,7 +142,7 @@ export default function App() {
             const t = p.trim();
             return t && !t.startsWith("@{");
           })
-          .map((p, i) => ({
+          .map((_, i) => ({
             paragraph: i,
             wpm: Math.round(130 * 0.85),
           })),

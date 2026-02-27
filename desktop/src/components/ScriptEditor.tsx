@@ -6,7 +6,7 @@
  * provides a functional editor backed by a <textarea> with styled directive
  * hint overlay rendered on top.
  */
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { LintResult } from "../types";
 import { PacingHeatmap } from "./PacingHeatmap";
 
@@ -19,32 +19,6 @@ interface Props {
   isLinting: boolean;
 }
 
-// Very lightweight directive highlighter: wraps @{...} tokens in a span.
-// Since we can't layer real syntax highlighting over a textarea, we render
-// a read-only styled div behind it and keep them in sync.
-function DirectiveHighlight({ source }: { source: string }) {
-  const highlighted = source
-    .split(/(@\{[^}]*\})/g)
-    .map((part, i) => {
-      if (part.startsWith("@{")) {
-        return (
-          <span key={i} className="text-accent font-semibold">
-            {part}
-          </span>
-        );
-      }
-      if (part.startsWith("{{") && part.endsWith("}}")) {
-        return (
-          <span key={i} className="text-warm">
-            {part}
-          </span>
-        );
-      }
-      return <span key={i}>{part}</span>;
-    });
-
-  return <>{highlighted}</>;
-}
 
 export function ScriptEditor({
   value,
@@ -107,8 +81,6 @@ export function ScriptEditor({
     },
     [value]
   );
-
-  const paragraphs = value.split(/\n\n+/);
 
   return (
     <div className="flex flex-col h-full">

@@ -2,7 +2,7 @@
  * Model Manager panel — browse, download, and remove TTS engines and voice packs.
  * Accessible at any time via the sidebar or settings (§14.4).
  */
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AvailableModel, DownloadProgress, InstalledModel, ModelList, ModelStatus } from "../types";
 import { useRpc } from "../hooks/useRpc";
 
@@ -67,7 +67,7 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
       );
       // Remove completed or failed downloads, refresh model list when one finishes
       const stillActive = updated.filter(
-        (dl) => dl.progress?.state !== "done" && dl.progress?.state !== "error"
+        (dl) => dl.progress?.state !== "done" && dl.progress?.state !== "failed"
       );
       if (stillActive.length < updated.length) {
         fetchModels();
