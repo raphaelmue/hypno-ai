@@ -9,7 +9,7 @@
     "vite:dev": "vite",
     "electron:compile": "tsc -p tsconfig.electron.json",
     "electron:dev": "wait-on http://localhost:1420 && electron .",
-    "dev": "concurrently --kill-others \"yarn vite:dev\" \"yarn electron:compile && yarn electron:dev\"",
+    "dev": "concurrently -n vite,electron -c blue,green --kill-others \"yarn vite:dev\" \"yarn electron:compile && yarn electron:dev\"",
     "build": "tsc -p tsconfig.electron.json && vite build",
     "build:dist": "yarn build && electron-builder",
     "preview": "vite preview",
