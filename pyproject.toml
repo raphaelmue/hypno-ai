@@ -28,6 +28,7 @@ dev = [
 
 [project.scripts]
 hypnoai = "hypnoai.cli:app"
+hypnoai-sidecar = "hypnoai.sidecar:main"
 
 [build-system]
 requires = ["hatchling"]
