@@ -2,8 +2,9 @@
  * Model Manager panel — browse, download, and remove TTS engines and voice packs.
  * Accessible at any time via the sidebar or settings (§14.4).
  */
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { AvailableModel, DownloadProgress, InstalledModel, ModelList, ModelStatus } from "../types";
+import { useRpc } from "../hooks/useRpc";
 
 interface Props {
   onClose?: () => void;
@@ -16,48 +17,71 @@ interface ActiveDownload {
   progress: DownloadProgress | null;
 }
 
-// Stub for Tauri invoke — replaced by real hook in full app
-async function stubInvoke<T>(_cmd: string, _args?: unknown): Promise<T> {
-  throw new Error("Tauri not available in browser mode");
-}
-
 export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
+  const rpc = useRpc();
   const [status, setStatus] = useState<ModelStatus | null>(null);
   const [modelList, setModelList] = useState<ModelList | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeDownloads, setActiveDownloads] = useState<ActiveDownload[]>([]);
   const [removingModel, setRemovingModel] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchModels = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // In production these calls go through the Tauri RPC bridge.
-      // Gracefully show an offline state in browser dev mode.
       const [statusResult, listResult] = await Promise.all([
-        stubInvoke<ModelStatus>("rpc_call", { method: "models.status", params: {} }),
-        stubInvoke<ModelList>("rpc_call", { method: "models.list", params: {} }),
+        rpc.modelsStatus(),
+        rpc.modelsList(),
       ]);
       setStatus(statusResult);
       setModelList(listResult);
-    } catch {
-      setError("Model information unavailable (sidecar not running).");
+    } catch (e) {
+      setError(`Model information unavailable: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [rpc]);
 
   useEffect(() => {
     fetchModels();
   }, [fetchModels]);
 
+  // Poll download progress for active downloads
+  useEffect(() => {
+    if (activeDownloads.length === 0) {
+      if (pollRef.current) clearInterval(pollRef.current);
+      return;
+    }
+    pollRef.current = setInterval(async () => {
+      const updated = await Promise.all(
+        activeDownloads.map(async (dl) => {
+          try {
+            const progress = await rpc.modelsDownloadProgress(dl.jobId);
+            return { ...dl, progress };
+          } catch {
+            return dl;
+          }
+        })
+      );
+      // Remove completed or failed downloads, refresh model list when one finishes
+      const stillActive = updated.filter(
+        (dl) => dl.progress?.state !== "done" && dl.progress?.state !== "error"
+      );
+      if (stillActive.length < updated.length) {
+        fetchModels();
+      }
+      setActiveDownloads(stillActive);
+    }, 1000);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [activeDownloads, rpc, fetchModels]);
+
   const handleDownload = async (model: AvailableModel) => {
     try {
-      const result = await stubInvoke<{ job_id: string; size_mb: number }>("rpc_call", {
-        method: "models.download",
-        params: { model: model.name },
-      });
+      const result = await rpc.modelsDownload(model.name);
       const download: ActiveDownload = {
         jobId: result.job_id,
         modelName: model.name,
@@ -73,10 +97,7 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
     if (!confirm(`Remove "${model.name}"? This will free ${model.size_mb.toFixed(1)} MB.`)) return;
     setRemovingModel(model.name);
     try {
-      await stubInvoke("rpc_call", {
-        method: "models.remove",
-        params: { model: model.name },
-      });
+      await rpc.modelsRemove(model.name);
       await fetchModels();
     } catch (e) {
       console.error("Remove failed:", e);
