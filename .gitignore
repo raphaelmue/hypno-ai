@@ -1,8 +1,10 @@
-# AI
+# AI / editor
 .claude/
-
-# IDE
 .idea/
+.vscode/
+*.swp
+*.swo
+*~
 
 # Python
 __pycache__/
@@ -11,34 +13,82 @@ __pycache__/
 *.so
 .Python
 
-# Virtual Environments
+# Virtual environments
 venv/
 env/
 ENV/
-.venv
+.venv/
 
-# Testing
+# Python testing & coverage
 .pytest_cache/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
 .tox/
 
-# Distribution / Packaging
+# Python distribution / packaging
 build/
 dist/
 *.egg-info/
 .eggs/
+*.whl
+
+# Rust / Cargo
+desktop/src-tauri/target/
+
+# Node / Yarn
+node_modules/
+desktop/node_modules/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Frontend build output
+desktop/dist/
+
+# Vitest / frontend coverage
+desktop/coverage/
+*.lcov
+
+# Tauri build artefacts
+desktop/src-tauri/target/
+*.app
+*.dmg
+*.deb
+*.rpm
+*.AppImage
+*.msi
+*.exe
 
 # OS
 .DS_Store
+.DS_Store?
+._*
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# Project-specific
+# Temp / sidecar session directories
+/tmp/hypnoai-*/
+
+# Project-specific generated audio
 engine/cache/*.wav
 engine/cache/*.mp3
 !engine/cache/.gitkeep
 engine/voices/*.onnx
 engine/voices/*.json
 !engine/voices/.gitkeep
+*.wav
+*.mp3
+!engine/cache/.gitkeep
+
+# Local config overrides
+hypnoai.toml
+.env
+.env.*
+!.env.example
 
 .output/
