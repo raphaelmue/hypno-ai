@@ -165,4 +165,12 @@ export interface SessionVariables {
   [key: string]: string;
 }
 
+export interface SessionInfo {
+  id: string;
+  name: string;
+  path: string;
+  modified_at: string;
+  is_draft: boolean;
+}
+
 export type AppView = "editor" | "model-manager" | "first-launch";

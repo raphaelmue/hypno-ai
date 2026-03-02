@@ -1,21 +1,19 @@
 /**
  * Application sidebar — session manager, variables panel, and model quick-status.
  */
-import type { LintResult, ModelStatus, SessionVariables } from "../types";
+import { useRef, useState } from "react";
+import type { LintResult, ModelStatus, SessionInfo, SessionVariables } from "../types";
 import { VariablesPanel } from "./VariablesPanel";
 
-interface Session {
-  id: string;
-  name: string;
-  path: string;
-  isDraft: boolean;
-}
-
 interface Props {
-  sessions: Session[];
+  sessions: SessionInfo[];
   activeSessionId: string | null;
   onSelectSession: (id: string) => void;
   onNewSession: () => void;
+  onDeleteSession: (id: string) => void;
+  onRenameSession: (id: string, name: string) => void;
+  sessionsDir: string;
+  onChangeSessionsDir: () => void;
   variables: SessionVariables;
   onVariablesChange: (v: SessionVariables) => void;
   lintResult: LintResult | null;
@@ -24,31 +22,118 @@ interface Props {
   installedModelCount: number;
 }
 
+function SessionItem({
+  session,
+  isActive,
+  onSelect,
+  onDelete,
+  onRename,
+}: {
+  session: SessionInfo;
+  isActive: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+  onRename: (name: string) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(session.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const startEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditName(session.name);
+    setIsEditing(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  };
+
+  const commitEdit = () => {
+    setIsEditing(false);
+    const trimmed = editName.trim();
+    if (trimmed && trimmed !== session.name) {
+      onRename(trimmed);
+    } else {
+      setEditName(session.name);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") commitEdit();
+    if (e.key === "Escape") {
+      setEditName(session.name);
+      setIsEditing(false);
+    }
+  };
+
+  return (
+    <div
+      className={`group flex items-center gap-1 px-2 py-1 rounded cursor-pointer ${
+        isActive
+          ? "bg-accent/20 text-accent"
+          : "text-surface-300 hover:bg-surface-700"
+      }`}
+      onClick={onSelect}
+    >
+      {isEditing ? (
+        <input
+          ref={inputRef}
+          value={editName}
+          onChange={(e) => setEditName(e.target.value)}
+          onBlur={commitEdit}
+          onKeyDown={handleKeyDown}
+          onClick={(e) => e.stopPropagation()}
+          className="flex-1 min-w-0 text-xs bg-surface-800 border border-accent/50 rounded px-1 py-0 text-surface-100 outline-none"
+          autoFocus
+        />
+      ) : (
+        <span
+          className="flex-1 min-w-0 text-xs truncate"
+          title={session.name}
+          onDoubleClick={startEdit}
+        >
+          {session.name}
+        </span>
+      )}
+      {!isEditing && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="opacity-0 group-hover:opacity-100 text-surface-500 hover:text-danger text-xs leading-none shrink-0 transition-opacity"
+          title="Delete session"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  );
+}
+
 function SessionTree({
   sessions,
   activeId,
   onSelect,
+  onDelete,
+  onRename,
 }: {
-  sessions: Session[];
+  sessions: SessionInfo[];
   activeId: string | null;
   onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+  onRename: (id: string, name: string) => void;
 }) {
-  const saved = sessions.filter((s) => !s.isDraft);
-  const drafts = sessions.filter((s) => s.isDraft);
+  const saved = sessions.filter((s) => !s.is_draft);
+  const drafts = sessions.filter((s) => s.is_draft);
 
-  const renderSession = (s: Session) => (
-    <button
+  const renderSession = (s: SessionInfo) => (
+    <SessionItem
       key={s.id}
-      onClick={() => onSelect(s.id)}
-      className={`w-full text-left px-3 py-1.5 text-xs rounded truncate ${
-        s.id === activeId
-          ? "bg-accent/20 text-accent"
-          : "text-surface-300 hover:bg-surface-700"
-      }`}
-      title={s.path}
-    >
-      {s.name}
-    </button>
+      session={s}
+      isActive={s.id === activeId}
+      onSelect={() => onSelect(s.id)}
+      onDelete={() => onDelete(s.id)}
+      onRename={(name) => onRename(s.id, name)}
+    />
   );
 
   return (
@@ -78,6 +163,10 @@ export function Sidebar({
   activeSessionId,
   onSelectSession,
   onNewSession,
+  onDeleteSession,
+  onRenameSession,
+  sessionsDir,
+  onChangeSessionsDir,
   variables,
   onVariablesChange,
   lintResult,
@@ -87,7 +176,7 @@ export function Sidebar({
 }: Props) {
   return (
     <div className="flex flex-col h-full bg-surface-900 border-r border-surface-700 w-48 shrink-0">
-      {/* Session manager */}
+      {/* Session manager header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-surface-700">
         <span className="text-xs font-medium text-surface-400 uppercase tracking-wide">
           Sessions
@@ -95,12 +184,13 @@ export function Sidebar({
         <button
           onClick={onNewSession}
           className="text-surface-400 hover:text-accent text-lg leading-none"
-          title="New script"
+          title="New session"
         >
           +
         </button>
       </div>
 
+      {/* Session list */}
       <div className="flex-1 overflow-y-auto py-1">
         {sessions.length === 0 ? (
           <div className="px-3 py-2 text-xs text-surface-500 italic">No sessions yet</div>
@@ -109,8 +199,29 @@ export function Sidebar({
             sessions={sessions}
             activeId={activeSessionId}
             onSelect={onSelectSession}
+            onDelete={onDeleteSession}
+            onRename={onRenameSession}
           />
         )}
+      </div>
+
+      {/* Sessions directory */}
+      <div className="border-t border-surface-700 px-3 py-2">
+        <div className="text-[10px] text-surface-500 uppercase tracking-wide mb-1">
+          Sessions folder
+        </div>
+        <div
+          className="text-[10px] text-surface-400 truncate mb-1"
+          title={sessionsDir}
+        >
+          {sessionsDir ? sessionsDir.replace(/^.*[/\\]/, "…/") : "—"}
+        </div>
+        <button
+          onClick={onChangeSessionsDir}
+          className="text-[10px] text-accent hover:text-accent-hover"
+        >
+          Change…
+        </button>
       </div>
 
       {/* Variables panel */}

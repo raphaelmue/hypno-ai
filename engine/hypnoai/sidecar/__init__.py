@@ -43,6 +43,16 @@ def main() -> None:
         handle_models_remove,
     )
     from .handlers.engines import handle_engines_active, handle_engines_use
+    from .handlers.sessions import (
+        handle_sessions_list,
+        handle_sessions_create,
+        handle_sessions_load,
+        handle_sessions_save,
+        handle_sessions_delete,
+        handle_sessions_rename,
+        handle_sessions_dir_get,
+        handle_sessions_dir_set,
+    )
 
     server.register("script.lint", handle_script_lint)
     server.register("render.start", handle_render_start)
@@ -64,6 +74,14 @@ def main() -> None:
     server.register("models.download", handle_models_download)
     server.register("models.download.progress", handle_models_download_progress)
     server.register("models.remove", handle_models_remove)
+    server.register("sessions.list", handle_sessions_list)
+    server.register("sessions.create", handle_sessions_create)
+    server.register("sessions.load", handle_sessions_load)
+    server.register("sessions.save", handle_sessions_save)
+    server.register("sessions.delete", handle_sessions_delete)
+    server.register("sessions.rename", handle_sessions_rename)
+    server.register("sessions.dir.get", handle_sessions_dir_get)
+    server.register("sessions.dir.set", handle_sessions_dir_set)
 
     server.run()
 

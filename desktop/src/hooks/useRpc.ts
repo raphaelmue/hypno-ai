@@ -70,6 +70,8 @@ import type {
   ModelList,
   ModelStatus,
   RenderProgress,
+  RenderSettings,
+  SessionInfo,
   VoiceInfo,
 } from "../types";
 
@@ -227,6 +229,75 @@ export function useRpc() {
     []
   );
 
+  // --- Sessions ---
+
+  const sessionsList = useCallback(
+    (): Promise<{ sessions: SessionInfo[]; sessions_dir: string }> =>
+      rpcCall("sessions.list", {}),
+    []
+  );
+
+  const sessionsCreate = useCallback(
+    (opts: {
+      name?: string;
+      script_content?: string;
+      render_settings?: Partial<RenderSettings>;
+      is_draft?: boolean;
+    }): Promise<{ id: string; name: string; path: string; script_path: string; output_path: string }> =>
+      rpcCall("sessions.create", opts as Record<string, unknown>),
+    []
+  );
+
+  const sessionsLoad = useCallback(
+    (id: string): Promise<{
+      id: string;
+      name: string;
+      path: string;
+      script_content: string;
+      script_path: string;
+      output_path: string;
+      render_settings: Partial<RenderSettings>;
+      is_draft: boolean;
+      modified_at: string;
+    }> => rpcCall("sessions.load", { id }),
+    []
+  );
+
+  const sessionsSave = useCallback(
+    (opts: {
+      id: string;
+      script_content?: string;
+      render_settings?: Partial<RenderSettings>;
+      name?: string;
+      is_draft?: boolean;
+    }): Promise<{ id: string; modified_at: string }> =>
+      rpcCall("sessions.save", opts as Record<string, unknown>),
+    []
+  );
+
+  const sessionsDelete = useCallback(
+    (id: string): Promise<{ deleted: boolean; id: string }> =>
+      rpcCall("sessions.delete", { id }),
+    []
+  );
+
+  const sessionsRename = useCallback(
+    (id: string, name: string): Promise<{ id: string; name: string }> =>
+      rpcCall("sessions.rename", { id, name }),
+    []
+  );
+
+  const sessionsDirGet = useCallback(
+    (): Promise<{ sessions_dir: string }> => rpcCall("sessions.dir.get", {}),
+    []
+  );
+
+  const sessionsDirSet = useCallback(
+    (sessions_dir: string): Promise<{ sessions_dir: string }> =>
+      rpcCall("sessions.dir.set", { sessions_dir }),
+    []
+  );
+
   return {
     lintScript,
     renderStart,
@@ -247,6 +318,14 @@ export function useRpc() {
     modelsDownload,
     modelsDownloadProgress,
     modelsRemove,
+    sessionsList,
+    sessionsCreate,
+    sessionsLoad,
+    sessionsSave,
+    sessionsDelete,
+    sessionsRename,
+    sessionsDirGet,
+    sessionsDirSet,
   };
 }
 

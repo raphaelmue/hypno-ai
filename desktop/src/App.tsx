@@ -24,10 +24,11 @@ import type {
   ModelStatus,
   RenderProgress,
   RenderSettings,
+  SessionInfo,
   SessionVariables,
   VoiceInfo,
 } from "./types";
-import { useRpc, showInFolder } from "./hooks/useRpc";
+import { useRpc, showInFolder, showOpenDialog } from "./hooks/useRpc";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -42,6 +43,7 @@ const DEFAULT_RENDER_SETTINGS: RenderSettings = {
 };
 
 const POLL_INTERVAL_MS = 1000;
+const AUTOSAVE_DELAY_MS = 1500;
 
 // ---------------------------------------------------------------------------
 // App
@@ -55,6 +57,12 @@ export default function App() {
   const [isFirstLaunch, setIsFirstLaunch] = useState(false);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
   const [showVoiceManager, setShowVoiceManager] = useState(false);
+
+  // Sessions
+  const [sessions, setSessions] = useState<SessionInfo[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [sessionsDir, setSessionsDir] = useState("");
+  const isSavingRef = useRef(false);
 
   // Script state
   const [scriptContent, setScriptContent] = useState(
@@ -82,20 +90,71 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false);
 
   // ---------------------------------------------------------------------------
-  // Bootstrap — check first launch & load voices/model status
+  // Session helpers
+  // ---------------------------------------------------------------------------
+
+  const refreshSessions = useCallback(async () => {
+    try {
+      const result = await rpc.sessionsList();
+      setSessions(result.sessions);
+      if (result.sessions_dir) setSessionsDir(result.sessions_dir);
+    } catch {
+      // browser dev mode — ignore
+    }
+  }, [rpc]);
+
+  // Auto-save the active session (debounced)
+  const autosaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeSessionIdRef = useRef<string | null>(null);
+  activeSessionIdRef.current = activeSessionId;
+
+  const scheduleAutosave = useCallback(
+    (content: string, settings: RenderSettings) => {
+      if (autosaveRef.current) clearTimeout(autosaveRef.current);
+      autosaveRef.current = setTimeout(async () => {
+        const id = activeSessionIdRef.current;
+        if (!id || isSavingRef.current) return;
+        isSavingRef.current = true;
+        try {
+          await rpc.sessionsSave({
+            id,
+            script_content: content,
+            render_settings: settings,
+          });
+          // Update modified_at in local list
+          setSessions((prev) =>
+            prev.map((s) =>
+              s.id === id ? { ...s, modified_at: new Date().toISOString() } : s
+            )
+          );
+        } catch {
+          // ignore — sidecar not running
+        } finally {
+          isSavingRef.current = false;
+        }
+      }, AUTOSAVE_DELAY_MS);
+    },
+    [rpc]
+  );
+
+  // ---------------------------------------------------------------------------
+  // Bootstrap — check first launch & load voices/model status/sessions
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
     const init = async () => {
       try {
-        const [voiceResult, status, activeEng] = await Promise.all([
+        const [voiceResult, status, activeEng, sessionsResult] = await Promise.all([
           rpc.listVoices("all"),
           rpc.modelsStatus(),
           rpc.enginesActive(),
+          rpc.sessionsList(),
         ]);
         setVoices(voiceResult.voices);
         setModelStatus(status);
         setRenderSettings((prev) => ({ ...prev, engine: activeEng.engine, voice: "" }));
+        setSessions(sessionsResult.sessions);
+        if (sessionsResult.sessions_dir) setSessionsDir(sessionsResult.sessions_dir);
 
         // First launch: no voices installed
         if (voiceResult.voices.length === 0) {
@@ -110,15 +169,128 @@ export default function App() {
   }, []);
 
   // ---------------------------------------------------------------------------
+  // Session actions
+  // ---------------------------------------------------------------------------
+
+  const handleNewSession = useCallback(async () => {
+    try {
+      const result = await rpc.sessionsCreate({
+        name: "New Session",
+        script_content: "",
+        render_settings: DEFAULT_RENDER_SETTINGS,
+      });
+      const newSession: SessionInfo = {
+        id: result.id,
+        name: result.name,
+        path: result.path,
+        modified_at: new Date().toISOString(),
+        is_draft: false,
+      };
+      setSessions((prev) => [newSession, ...prev]);
+      setActiveSessionId(result.id);
+      setScriptContent("");
+      setRenderSettings(DEFAULT_RENDER_SETTINGS);
+      setOutputPath(result.output_path);
+      setRenderProgress(null);
+    } catch {
+      // browser dev mode — just clear the editor
+      setScriptContent("");
+      setActiveSessionId(null);
+    }
+  }, [rpc]);
+
+  const handleSelectSession = useCallback(
+    async (id: string) => {
+      if (id === activeSessionId) return;
+      try {
+        const data = await rpc.sessionsLoad(id);
+        setActiveSessionId(id);
+        setScriptContent(data.script_content);
+        setOutputPath(data.output_path);
+        setRenderProgress(null);
+        if (data.render_settings && Object.keys(data.render_settings).length > 0) {
+          setRenderSettings((prev) => ({ ...prev, ...data.render_settings }));
+        }
+      } catch (e) {
+        console.error("Failed to load session:", e);
+      }
+    },
+    [activeSessionId, rpc]
+  );
+
+  const handleDeleteSession = useCallback(
+    async (id: string) => {
+      try {
+        await rpc.sessionsDelete(id);
+        setSessions((prev) => prev.filter((s) => s.id !== id));
+        if (activeSessionId === id) {
+          setActiveSessionId(null);
+          setScriptContent("");
+          setOutputPath("");
+          setRenderProgress(null);
+        }
+      } catch (e) {
+        console.error("Failed to delete session:", e);
+      }
+    },
+    [activeSessionId, rpc]
+  );
+
+  const handleRenameSession = useCallback(
+    async (id: string, name: string) => {
+      try {
+        await rpc.sessionsRename(id, name);
+        setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, name } : s)));
+      } catch (e) {
+        console.error("Failed to rename session:", e);
+      }
+    },
+    [rpc]
+  );
+
+  const handleChangeSessionsDir = useCallback(async () => {
+    try {
+      const result = await showOpenDialog({
+        title: "Choose sessions folder",
+        properties: ["openDirectory", "createDirectory"],
+      });
+      if (result.canceled || !result.filePaths[0]) return;
+      const newDir = result.filePaths[0];
+      await rpc.sessionsDirSet(newDir);
+      setSessionsDir(newDir);
+      await refreshSessions();
+    } catch (e) {
+      console.error("Failed to change sessions dir:", e);
+    }
+  }, [rpc, refreshSessions]);
+
+  // ---------------------------------------------------------------------------
+  // Script change — triggers auto-save
+  // ---------------------------------------------------------------------------
+
+  const handleScriptChange = useCallback(
+    (content: string) => {
+      setScriptContent(content);
+      scheduleAutosave(content, renderSettings);
+    },
+    [scheduleAutosave, renderSettings]
+  );
+
+  const handleSettingsChange = useCallback(
+    (settings: RenderSettings) => {
+      setRenderSettings(settings);
+      scheduleAutosave(scriptContent, settings);
+    },
+    [scheduleAutosave, scriptContent]
+  );
+
+  // ---------------------------------------------------------------------------
   // Lint
   // ---------------------------------------------------------------------------
 
   const handleLint = useCallback(async () => {
-    // Lint operates on an in-memory script; write to a temp file via sidecar
-    // In production: save file first, then lint. For now show a placeholder.
     setIsLinting(true);
     try {
-      // For browser dev mode, produce a stub lint result
       const stubResult: LintResult = {
         valid: true,
         warnings: [],
@@ -219,7 +391,6 @@ export default function App() {
     } catch (e) {
       console.error("Failed to set engine:", e);
     }
-    // Reload voices for the new engine
     try {
       const result = await rpc.listVoices("all");
       setVoices(result.voices ?? []);
@@ -259,13 +430,36 @@ export default function App() {
   const handleGenerate = useCallback(
     async (params: AIGenerateParams, _onChunk: (chunk: string) => void) => {
       setIsGenerating(true);
-      setScriptContent(""); // clear editor before streaming
+      setScriptContent("");
+      let generated = "";
       try {
         await rpc.generateScript(params, (chunk) => {
           if (chunk.chunk) {
+            generated += chunk.chunk;
             setScriptContent((prev) => prev + chunk.chunk);
           }
         });
+        // Create a draft session for the generated script
+        try {
+          const result = await rpc.sessionsCreate({
+            name: `AI Draft — ${params.theme || params.template}`,
+            script_content: generated,
+            render_settings: renderSettings,
+            is_draft: true,
+          });
+          const newSession: SessionInfo = {
+            id: result.id,
+            name: result.name,
+            path: result.path,
+            modified_at: new Date().toISOString(),
+            is_draft: true,
+          };
+          setSessions((prev) => [newSession, ...prev]);
+          setActiveSessionId(result.id);
+          setOutputPath(result.output_path);
+        } catch {
+          // ignore — sidecar not running
+        }
       } catch (e) {
         console.error("Generation failed:", e);
       } finally {
@@ -273,7 +467,7 @@ export default function App() {
         setShowAIAssistant(false);
       }
     },
-    [rpc]
+    [rpc, renderSettings]
   );
 
   // ---------------------------------------------------------------------------
@@ -286,10 +480,14 @@ export default function App() {
     <div className="flex h-screen bg-surface-950 text-surface-100 overflow-hidden">
       {/* Sidebar */}
       <Sidebar
-        sessions={[]}
-        activeSessionId={null}
-        onSelectSession={() => {}}
-        onNewSession={() => setScriptContent("")}
+        sessions={sessions}
+        activeSessionId={activeSessionId}
+        onSelectSession={handleSelectSession}
+        onNewSession={handleNewSession}
+        onDeleteSession={handleDeleteSession}
+        onRenameSession={handleRenameSession}
+        sessionsDir={sessionsDir}
+        onChangeSessionsDir={handleChangeSessionsDir}
         variables={variables}
         onVariablesChange={setVariables}
         lintResult={lintResult}
@@ -302,7 +500,11 @@ export default function App() {
       <div className="flex flex-col flex-1 min-w-0">
         {/* Title bar */}
         <div className="flex items-center justify-between px-4 py-2 bg-surface-900 border-b border-surface-700 shrink-0">
-          <span className="text-sm font-medium text-surface-300">HypnoAI</span>
+          <span className="text-sm font-medium text-surface-300">
+            {activeSessionId
+              ? (sessions.find((s) => s.id === activeSessionId)?.name ?? "HypnoAI")
+              : "HypnoAI"}
+          </span>
           <div className="flex items-center gap-2">
             <span className="text-xs text-surface-500">
               Engine: {renderSettings.engine}
@@ -328,7 +530,7 @@ export default function App() {
           <div className="flex-1 min-w-0 flex flex-col">
             <ScriptEditor
               value={scriptContent}
-              onChange={setScriptContent}
+              onChange={handleScriptChange}
               lintResult={lintResult}
               onLint={handleLint}
               isLinting={isLinting}
@@ -339,7 +541,7 @@ export default function App() {
           <div className="w-56 shrink-0 border-l border-surface-700 bg-surface-900 overflow-y-auto">
             <VoiceRenderSettings
               settings={renderSettings}
-              onSettingsChange={setRenderSettings}
+              onSettingsChange={handleSettingsChange}
               voices={voices}
               engines={engines}
               renderProgress={renderProgress}
