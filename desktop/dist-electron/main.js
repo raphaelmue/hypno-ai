@@ -45,6 +45,10 @@ function startSidecar() {
     sidecar.process = child;
     const rl = readline.createInterface({ input: child.stdout, crlfDelay: Infinity });
     rl.on('line', (line) => {
+        if (!line.startsWith('{')) {
+            console.warn('[sidecar] Unexpected line:', line);
+            return;
+        }
         const resolver = sidecar.lineQueue.shift();
         if (resolver)
             resolver(line);

@@ -78,7 +78,8 @@ def _run_render_job(job: RenderJob, params: dict, cfg: Config) -> None:
         chunks_dir = output_path.parent / "chunks"
         chunks_dir.mkdir(parents=True, exist_ok=True)
 
-        pipeline = RenderPipeline(tts_engine, cfg.sample_rate, cache, max_workers)
+        engine_sr = getattr(tts_engine, "sample_rate", cfg.sample_rate)
+        pipeline = RenderPipeline(tts_engine, engine_sr, cache, max_workers)
 
         # Wrap pipeline.render to track progress
         # We do this by hooking into the job object inside a sequential subclass

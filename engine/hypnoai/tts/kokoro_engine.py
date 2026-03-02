@@ -21,32 +21,40 @@ if TYPE_CHECKING:
     pass
 
 # Built-in voice presets bundled with the kokoro checkpoint.
-# Prefix convention: a* = American English, b* = British English.
+# Prefix convention: first letter = language (a=en-us, b=en-gb, e=es, f=fr,
+#   h=hi, i=it, j=ja, p=pt, z=zh), second letter = gender (f/m).
 _KOKORO_VOICES = [
-    "af",
-    "af_bella",
-    "af_sarah",
-    "af_sky",
-    "af_nicole",
-    "am_adam",
-    "am_michael",
-    "bf_emma",
-    "bf_isabella",
-    "bm_george",
-    "bm_lewis",
+    # American English
+    "af_alloy", "af_aoede", "af_bella", "af_heart", "af_jessica",
+    "af_kore", "af_nicole", "af_nova", "af_river", "af_sarah", "af_sky",
+    "am_adam", "am_echo", "am_eric", "am_fenrir", "am_liam",
+    "am_michael", "am_onyx", "am_puck",
+    # British English
+    "bf_alice", "bf_emma", "bf_isabella", "bf_lily",
+    "bm_daniel", "bm_fable", "bm_george", "bm_lewis",
+    # Other languages
+    "ef_dora", "em_alex",
+    "ff_siwis",
+    "hf_alpha", "hf_beta", "hm_omega", "hm_psi",
+    "if_sara", "im_nicola",
+    "jf_alpha", "jf_gongitsune", "jf_nezumi", "jf_tebukuro", "jm_kumo",
+    "pf_dora", "pm_alex",
+    "zf_xiaobei", "zf_xiaoni", "zf_xiaoxiao", "zf_xiaoyi",
 ]
 
-_KOKORO_LANGUAGES = ["en-us", "en-gb", "fr-fr", "de-de", "ja", "ko", "zh"]
+_KOKORO_LANGUAGES = ["en-us", "en-gb", "es", "fr-fr", "hi", "it", "ja", "pt", "zh"]
 
-# Map our language codes to kokoro's internal lang_code letters.
+# Map kokoro's internal lang_code letter to our language tag.
 _LANG_CODE_MAP: dict[str, str] = {
-    "en-us": "a",
-    "en-gb": "b",
-    "de-de": "d",
-    "fr-fr": "f",
-    "ja": "j",
-    "ko": "k",
-    "zh": "z",
+    "a": "en-us",
+    "b": "en-gb",
+    "e": "es",
+    "f": "fr-fr",
+    "h": "hi",
+    "i": "it",
+    "j": "ja",
+    "p": "pt",
+    "z": "zh",
 }
 
 _SAMPLE_RATE = 24000
@@ -81,6 +89,10 @@ class KokoroEngine:
     @property
     def name(self) -> str:
         return "kokoro"
+
+    @property
+    def sample_rate(self) -> int:
+        return _SAMPLE_RATE
 
     @property
     def vram_estimate_mb(self) -> int:
@@ -162,24 +174,24 @@ class KokoroEngine:
     # ------------------------------------------------------------------
 
     def _lang_code_for_voice(self, voice: str) -> str:
-        """Return the kokoro lang_code for a given voice ID."""
-        if voice.startswith("af") or voice.startswith("am"):
-            return "a"  # American English
-        if voice.startswith("bf") or voice.startswith("bm"):
-            return "b"  # British English
-        return "a"  # safe default
+        """Return the kokoro lang_code letter for a given voice ID."""
+        return voice[0] if voice else "a"
 
     def _language_for_voice(self, voice: str) -> str:
         """Return the BCP-47-style language tag for a given voice ID."""
-        if voice.startswith("af") or voice.startswith("am"):
-            return "en-us"
-        if voice.startswith("bf") or voice.startswith("bm"):
-            return "en-gb"
-        return "en-us"
+        return _LANG_CODE_MAP.get(voice[0] if voice else "a", "en-us")
 
     def _get_pipeline(self, lang_code: str) -> "KPipeline":
         """Return a cached ``KPipeline`` for *lang_code*, creating it if needed."""
         if lang_code not in self._pipelines:
-            device = "cuda" if self.use_gpu else "cpu"
+            if self.use_gpu:
+                try:
+                    import torch
+                    use_cuda = torch.cuda.is_available()
+                except ImportError:
+                    use_cuda = False
+            else:
+                use_cuda = False
+            device = "cuda" if use_cuda else "cpu"
             self._pipelines[lang_code] = KPipeline(lang_code=lang_code, device=device)
         return self._pipelines[lang_code]

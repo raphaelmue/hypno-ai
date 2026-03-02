@@ -7,9 +7,17 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
+from math import gcd
+
 from .effects import crossfade_concat, warmth_eq
 from .limiter import brick_wall_limiter
 from .normalize import normalize_loudness
+
+
+def _resample(data: np.ndarray, from_sr: int, to_sr: int) -> np.ndarray:
+    from scipy.signal import resample_poly  # type: ignore[import-untyped]
+    g = gcd(to_sr, from_sr)
+    return resample_poly(data, to_sr // g, from_sr // g).astype(np.float32)
 
 
 @dataclass
@@ -67,10 +75,7 @@ class PostProcessor:
             if sr is None:
                 sr = file_sr
             elif file_sr != sr:
-                raise ValueError(
-                    f"Sample rate mismatch in {path.name}: "
-                    f"expected {sr} Hz, got {file_sr} Hz."
-                )
+                data = _resample(data, file_sr, sr)
             chunks.append(data)
 
         if sr is None:
