@@ -15,6 +15,7 @@ import {
   ModelManager,
   ScriptEditor,
   Sidebar,
+  VoiceManager,
   VoiceRenderSettings,
 } from "./components";
 import type {
@@ -53,6 +54,7 @@ export default function App() {
   const [showModelManager, setShowModelManager] = useState(false);
   const [isFirstLaunch, setIsFirstLaunch] = useState(false);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [showVoiceManager, setShowVoiceManager] = useState(false);
 
   // Script state
   const [scriptContent, setScriptContent] = useState(
@@ -86,12 +88,14 @@ export default function App() {
   useEffect(() => {
     const init = async () => {
       try {
-        const [voiceResult, status] = await Promise.all([
-          rpc.listVoices("piper"),
+        const [voiceResult, status, activeEng] = await Promise.all([
+          rpc.listVoices("all"),
           rpc.modelsStatus(),
+          rpc.enginesActive(),
         ]);
         setVoices(voiceResult.voices);
         setModelStatus(status);
+        setRenderSettings((prev) => ({ ...prev, engine: activeEng.engine, voice: "" }));
 
         // First launch: no voices installed
         if (voiceResult.voices.length === 0) {
@@ -192,9 +196,9 @@ export default function App() {
     setRenderProgress(null);
     try {
       const { job_id } = await rpc.renderStart(
-        "current_script.hypno", // TODO: real file path
         outputPath,
         {
+          scriptContent,
           variables,
           voice: renderSettings.voice,
           engine: renderSettings.engine,
@@ -207,7 +211,22 @@ export default function App() {
       console.error("Render failed:", e);
       setIsRendering(false);
     }
-  }, [renderSettings, outputPath, variables, rpc, startPolling]);
+  }, [scriptContent, renderSettings, outputPath, variables, rpc, startPolling]);
+
+  const handleEngineChange = useCallback(async (engine: string) => {
+    try {
+      await rpc.enginesUse(engine);
+    } catch (e) {
+      console.error("Failed to set engine:", e);
+    }
+    // Reload voices for the new engine
+    try {
+      const result = await rpc.listVoices("all");
+      setVoices(result.voices ?? []);
+    } catch {
+      // ignore
+    }
+  }, [rpc]);
 
   const handleCancelRender = useCallback(async () => {
     if (!activeJobId) return;
@@ -340,6 +359,8 @@ export default function App() {
               onPreview={handlePreview}
               outputPath={outputPath}
               onOutputPathChange={setOutputPath}
+              onManageVoices={() => setShowVoiceManager(true)}
+              onEngineChange={handleEngineChange}
             />
           </div>
         </div>
@@ -353,6 +374,22 @@ export default function App() {
         isGenerating={isGenerating}
         onCancel={() => setIsGenerating(false)}
       />
+
+      {/* Voice Manager */}
+      {showVoiceManager && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-2xl h-[80vh] rounded-lg overflow-hidden shadow-2xl border border-surface-700">
+            <VoiceManager
+              activeEngine={renderSettings.engine}
+              onClose={() => setShowVoiceManager(false)}
+              onVoicesChanged={async () => {
+                const result = await rpc.listVoices("all");
+                setVoices(result.voices ?? []);
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Model Manager / First-Launch Wizard */}
       {showModelManager && (

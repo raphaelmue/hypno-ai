@@ -61,6 +61,14 @@ voices_app = typer.Typer(
 )
 app.add_typer(voices_app, name="voices")
 
+# Sub-app for engine management
+engines_app = typer.Typer(
+    name="engines",
+    help="Manage the active TTS engine (list, use, active).",
+    no_args_is_help=True,
+)
+app.add_typer(engines_app, name="engines")
+
 
 def _load_config(config_path: Optional[Path]) -> Config:
     return Config.load(config_path)
@@ -801,9 +809,25 @@ def voices_list(
         console.print(tbl)
         return
 
-    registry = VoiceRegistry(voices_dir=cfg.voices_dir, piper_bin=cfg.piper_bin)
-    engine_filter = None if engine == "all" else engine
-    voice_list = registry.list_voices(engine=engine_filter, language=language)
+    engines_to_query = _SUPPORTED_ENGINES if engine == "all" else [engine]
+
+    # Collect voices from all requested engines using their VoiceManagers.
+    # This correctly handles each engine's voice model:
+    #   piper    — installed ONNX files (catalog-downloaded)
+    #   kokoro   — fixed built-in presets (no install needed to list)
+    #   bark     — fixed built-in speaker presets
+    #   coqui /  f5tts / styletts2 — user .wav reference clips
+    voice_list = []
+    for eng in engines_to_query:
+        vm = _build_voice_manager(eng, cfg)
+        if vm is not None:
+            voices = vm.list_voices()
+            if language:
+                voices = [
+                    v for v in voices
+                    if v.language.startswith(language) or v.language == "multilingual"
+                ]
+            voice_list.extend(voices)
 
     if not voice_list:
         if engine in ("piper", "all"):
@@ -811,7 +835,14 @@ def voices_list(
             console.print("Run 'hypnoai voices list --available' to browse the catalog.")
             console.print("Run 'hypnoai voices add <voice_id>' to download a voice.")
         else:
-            console.print(f"[yellow]No voices installed for engine '{engine}'.[/yellow]")
+            eng_obj = _build_engine(engine, cfg)
+            if eng_obj is None:
+                console.print(
+                    f"[yellow]Engine '{engine}' is not installed.[/yellow] "
+                    f"Check 'hypnoai engines' for install instructions."
+                )
+            else:
+                console.print(f"[yellow]No voices found for engine '{engine}'.[/yellow]")
         return
 
     title = f"Installed Voices — {engine}"
@@ -938,8 +969,10 @@ def voices_remove(
 
 
 # ---------------------------------------------------------------------------
-# engines command
+# engines sub-app
 # ---------------------------------------------------------------------------
+
+_VALID_ENGINES = ["piper", "coqui", "kokoro", "styletts2", "f5tts", "bark"]
 
 _ENGINE_CAPABILITIES = [
     {
@@ -993,8 +1026,8 @@ _ENGINE_CAPABILITIES = [
 ]
 
 
-@app.command()
-def engines() -> None:
+@engines_app.command("list")
+def engines_list() -> None:
     """List all supported TTS engines and their capabilities."""
     tbl = Table(title="Supported TTS Engines")
     tbl.add_column("Engine", style="cyan", no_wrap=True)
@@ -1014,6 +1047,33 @@ def engines() -> None:
             eng["emotions"] or "—",
         )
     console.print(tbl)
+
+
+@engines_app.command("active")
+def engines_active(
+    config_path: Optional[Path] = typer.Option(None, "--config", help="Path to hypnoai.toml."),
+) -> None:
+    """Show the currently active TTS engine."""
+    cfg = _load_config(config_path)
+    console.print(f"Active engine: [cyan]{cfg.default_engine}[/cyan]")
+
+
+@engines_app.command("use")
+def engines_use(
+    engine: str = typer.Argument(
+        ..., help=f"Engine to activate ({', '.join(_VALID_ENGINES)})."
+    ),
+    config_path: Optional[Path] = typer.Option(None, "--config", help="Path to hypnoai.toml."),
+) -> None:
+    """Set the active TTS engine (persists to runtime state file)."""
+    if engine not in _VALID_ENGINES:
+        err_console.print(
+            f"[red]Unknown engine:[/red] {engine!r}. "
+            f"Valid: {', '.join(_VALID_ENGINES)}"
+        )
+        raise typer.Exit(1)
+    Config.save_state("active_engine", engine)
+    console.print(f"[green]Active engine set to:[/green] [cyan]{engine}[/cyan]")
 
 
 def main() -> None:

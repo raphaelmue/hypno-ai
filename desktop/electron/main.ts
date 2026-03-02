@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import { spawn, ChildProcess } from 'child_process';
 import * as readline from 'readline';
 import * as path from 'path';
@@ -18,8 +18,13 @@ const sidecar = {
 function findVenvPython(): string {
   let dir = __dirname;
   for (let i = 0; i < 10; i++) {
-    const candidate = path.join(dir, '.venv', 'bin', 'python');
-    if (fs.existsSync(candidate)) return candidate;
+    const candidates = [
+      path.join(dir, '.venv', 'Scripts', 'python.exe'), // Windows
+      path.join(dir, '.venv', 'bin', 'python'),          // Unix
+    ];
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) return candidate;
+    }
     const parent = path.dirname(dir);
     if (parent === dir) break;
     dir = parent;
@@ -92,6 +97,11 @@ ipcMain.handle('rpc-stream', async (event, method: string, params: unknown, stre
       if (resp.result.done === true) break;
     }
   }
+});
+
+// Native file-open dialog
+ipcMain.handle('show-open-dialog', async (_e, options: Electron.OpenDialogOptions) => {
+  return dialog.showOpenDialog(options);
 });
 
 function createWindow(): void {

@@ -25,7 +25,14 @@ def main() -> None:
         handle_render_cancel,
         handle_render_preview,
     )
-    from .handlers.voices import handle_voices_list, handle_voices_clone
+    from .handlers.voices import (
+        handle_voices_list,
+        handle_voices_engines,
+        handle_voices_clone,
+        handle_voices_catalog,
+        handle_voices_remove,
+        handle_voices_add,
+    )
     from .handlers.ai import handle_ai_generate
     from .handlers.models import (
         handle_models_status,
@@ -34,6 +41,7 @@ def main() -> None:
         handle_models_download_progress,
         handle_models_remove,
     )
+    from .handlers.engines import handle_engines_active, handle_engines_use
 
     server.register("script.lint", handle_script_lint)
     server.register("render.start", handle_render_start)
@@ -41,7 +49,13 @@ def main() -> None:
     server.register("render.cancel", handle_render_cancel)
     server.register("render.preview", handle_render_preview)
     server.register("voices.list", handle_voices_list)
+    server.register("voices.engines", handle_voices_engines)
     server.register("voices.clone", handle_voices_clone)
+    server.register("voices.catalog", handle_voices_catalog)
+    server.register("voices.remove", handle_voices_remove)
+    server.register("voices.add", handle_voices_add)
+    server.register("engines.active", handle_engines_active)
+    server.register("engines.use", handle_engines_use)
     server.register("ai.generate", handle_ai_generate)
     server.register("models.status", handle_models_status)
     server.register("models.list", handle_models_list)

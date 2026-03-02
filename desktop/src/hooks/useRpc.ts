@@ -22,6 +22,11 @@ declare global {
         params: Record<string, unknown>,
         onChunk: (chunk: Record<string, unknown>) => void
       ) => Promise<void>;
+      showOpenDialog: (options: {
+        title?: string;
+        filters?: { name: string; extensions: string[] }[];
+        properties?: string[];
+      }) => Promise<{ canceled: boolean; filePaths: string[] }>;
     };
   }
 }
@@ -52,7 +57,9 @@ export async function rpcStream(
 import type {
   AIChunk,
   AIGenerateParams,
+  CatalogVoice,
   DownloadProgress,
+  EngineStatus,
   LintResult,
   ModelList,
   ModelStatus,
@@ -72,19 +79,22 @@ export function useRpc() {
 
   const renderStart = useCallback(
     (
-      scriptPath: string,
       outputPath: string,
       options: {
+        scriptContent?: string;
+        scriptPath?: string;
         variables?: Record<string, string>;
         voice?: string;
         engine?: string;
         speed?: number;
       }
     ): Promise<{ job_id: string }> => {
+      const { scriptContent, scriptPath, ...rest } = options;
       return rpcCall("render.start", {
-        script_path: scriptPath,
         output_path: outputPath,
-        ...options,
+        ...(scriptContent !== undefined ? { script_content: scriptContent } : {}),
+        ...(scriptPath !== undefined ? { script_path: scriptPath } : {}),
+        ...rest,
       });
     },
     []
@@ -141,6 +151,42 @@ export function useRpc() {
     []
   );
 
+  const voicesEngines = useCallback(
+    (): Promise<{ engines: EngineStatus[] }> =>
+      rpcCall("voices.engines", {}),
+    []
+  );
+
+  const voicesCatalog = useCallback(
+    (): Promise<{ voices: CatalogVoice[] }> =>
+      rpcCall("voices.catalog", {}),
+    []
+  );
+
+  const voicesRemove = useCallback(
+    (voiceId: string, engine: string): Promise<{ removed: boolean }> =>
+      rpcCall("voices.remove", { voice_id: voiceId, engine }),
+    []
+  );
+
+  const voicesAdd = useCallback(
+    (name: string, sourcePath: string, engine: string): Promise<{ voice_id: string }> =>
+      rpcCall("voices.add", { name, source_path: sourcePath, engine }),
+    []
+  );
+
+  // --- Engines ---
+
+  const enginesActive = useCallback(
+    (): Promise<{ engine: string }> => rpcCall("engines.active", {}),
+    []
+  );
+
+  const enginesUse = useCallback(
+    (engine: string): Promise<{ engine: string }> => rpcCall("engines.use", { engine }),
+    []
+  );
+
   // --- AI ---
 
   const generateScript = useCallback(
@@ -194,6 +240,12 @@ export function useRpc() {
     renderPreview,
     listVoices,
     cloneVoice,
+    voicesEngines,
+    voicesCatalog,
+    voicesRemove,
+    voicesAdd,
+    enginesActive,
+    enginesUse,
     generateScript,
     modelsStatus,
     modelsList,
@@ -201,4 +253,15 @@ export function useRpc() {
     modelsDownloadProgress,
     modelsRemove,
   };
+}
+
+export function showOpenDialog(options: {
+  title?: string;
+  filters?: { name: string; extensions: string[] }[];
+  properties?: string[];
+}): Promise<{ canceled: boolean; filePaths: string[] }> {
+  if (!window.electronAPI?.showOpenDialog) {
+    return Promise.resolve({ canceled: true, filePaths: [] });
+  }
+  return window.electronAPI.showOpenDialog(options);
 }

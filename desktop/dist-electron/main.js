@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import { spawn } from 'child_process';
 import * as readline from 'readline';
 import * as path from 'path';
@@ -15,9 +15,14 @@ const sidecar = {
 function findVenvPython() {
     let dir = __dirname;
     for (let i = 0; i < 10; i++) {
-        const candidate = path.join(dir, '.venv', 'bin', 'python');
-        if (fs.existsSync(candidate))
-            return candidate;
+        const candidates = [
+            path.join(dir, '.venv', 'Scripts', 'python.exe'), // Windows
+            path.join(dir, '.venv', 'bin', 'python'), // Unix
+        ];
+        for (const candidate of candidates) {
+            if (fs.existsSync(candidate))
+                return candidate;
+        }
         const parent = path.dirname(dir);
         if (parent === dir)
             break;
@@ -90,12 +95,16 @@ ipcMain.handle('rpc-stream', async (event, method, params, streamId) => {
         }
     }
 });
+// Native file-open dialog
+ipcMain.handle('show-open-dialog', async (_e, options) => {
+    return dialog.showOpenDialog(options);
+});
 function createWindow() {
     const win = new BrowserWindow({
         width: 1280, height: 800, minWidth: 900, minHeight: 600,
         title: 'HypnoAI',
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
+            preload: path.join(__dirname, 'preload.cjs'),
             contextIsolation: true,
             nodeIntegration: false,
             sandbox: false,

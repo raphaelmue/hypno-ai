@@ -9,6 +9,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   rpcCall: (method: string, params: Record<string, unknown>): Promise<unknown> =>
     ipcRenderer.invoke('rpc-call', method, params),
 
+  showOpenDialog: (options: {
+    title?: string;
+    filters?: { name: string; extensions: string[] }[];
+    properties?: string[];
+  }): Promise<{ canceled: boolean; filePaths: string[] }> =>
+    ipcRenderer.invoke('show-open-dialog', options),
+
   rpcStream: (
     method: string,
     params: Record<string, unknown>,

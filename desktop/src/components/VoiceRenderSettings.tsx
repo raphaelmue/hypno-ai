@@ -16,6 +16,8 @@ interface Props {
   onPreview: () => void;
   outputPath: string;
   onOutputPathChange: (path: string) => void;
+  onManageVoices?: () => void;
+  onEngineChange?: (engine: string) => void;
 }
 
 const EMOTIONS = ["", "soothing", "warm", "whisper", "confident", "calm"];
@@ -114,6 +116,8 @@ export function VoiceRenderSettings({
   onPreview,
   outputPath,
   onOutputPathChange,
+  onManageVoices,
+  onEngineChange,
 }: Props) {
   const set = (patch: Partial<RenderSettings>) =>
     onSettingsChange({ ...settings, ...patch });
@@ -133,7 +137,10 @@ export function VoiceRenderSettings({
         <label className="block text-xs text-surface-400 mb-1">Engine</label>
         <select
           value={settings.engine}
-          onChange={(e) => set({ engine: e.target.value, voice: "" })}
+          onChange={(e) => {
+            set({ engine: e.target.value, voice: "" });
+            onEngineChange?.(e.target.value);
+          }}
           className="w-full px-2 py-1 text-xs bg-surface-800 border border-surface-700 rounded text-surface-100 focus:outline-none focus:border-accent"
         >
           {engines.map((e) => (
@@ -146,7 +153,17 @@ export function VoiceRenderSettings({
 
       {/* Voice */}
       <div>
-        <label className="block text-xs text-surface-400 mb-1">Voice</label>
+        <div className="flex justify-between items-center mb-1">
+          <label className="text-xs text-surface-400">Voice</label>
+          {onManageVoices && (
+            <button
+              onClick={onManageVoices}
+              className="text-[10px] text-accent hover:underline"
+            >
+              Manage
+            </button>
+          )}
+        </div>
         <select
           value={settings.voice}
           onChange={(e) => set({ voice: e.target.value })}

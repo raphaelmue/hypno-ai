@@ -1,9 +1,13 @@
 """Configuration management for HypnoAI."""
 from __future__ import annotations
 
+import json
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
+
+# Runtime state (mutable at runtime, separate from the user's config file)
+_STATE_FILE = Path("hypnoai_state.json")
 
 
 @dataclass
@@ -51,15 +55,53 @@ class Config:
 
     @classmethod
     def load(cls, path: Path | None = None) -> "Config":
-        """Load configuration from a TOML file. Returns defaults if not found."""
+        """Load configuration from a TOML file. Returns defaults if not found.
+
+        Runtime state (active_engine) stored in ``hypnoai_state.json`` takes
+        precedence over the static ``default_engine`` in the TOML so that
+        ``hypnoai engines use <name>`` survives across invocations without
+        requiring the user to edit their config file.
+        """
         if path is None:
             path = Path("hypnoai.toml")
         if not path.exists():
-            return cls()
-        with open(path, "rb") as f:
-            data = tomllib.load(f)
-        for key in ("voices_dir", "cache_dir"):
-            if key in data:
-                data[key] = Path(data[key])
-        known = set(cls.__dataclass_fields__)
-        return cls(**{k: v for k, v in data.items() if k in known})
+            cfg = cls()
+        else:
+            with open(path, "rb") as f:
+                data = tomllib.load(f)
+            for key in ("voices_dir", "cache_dir"):
+                if key in data:
+                    data[key] = Path(data[key])
+            known = set(cls.__dataclass_fields__)
+            cfg = cls(**{k: v for k, v in data.items() if k in known})
+
+        # Override with runtime state (persisted by `engines use`)
+        active = cls.load_state("active_engine")
+        if active:
+            cfg.default_engine = active
+        return cfg
+
+    # ------------------------------------------------------------------
+    # Runtime state helpers — thin JSON store for mutable settings
+
+    @classmethod
+    def load_state(cls, key: str, default=None):
+        """Read a single key from the runtime state file."""
+        try:
+            with open(_STATE_FILE) as f:
+                return json.load(f).get(key, default)
+        except (FileNotFoundError, json.JSONDecodeError, OSError):
+            return default
+
+    @classmethod
+    def save_state(cls, key: str, value) -> None:
+        """Persist a single key into the runtime state file."""
+        state: dict = {}
+        try:
+            with open(_STATE_FILE) as f:
+                state = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError, OSError):
+            pass
+        state[key] = value
+        with open(_STATE_FILE, "w") as f:
+            json.dump(state, f, indent=2)

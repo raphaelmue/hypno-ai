@@ -18,6 +18,24 @@ export interface VoiceInfo {
   engine: string;
 }
 
+export interface CatalogVoice {
+  id: string;
+  name: string;
+  language: string;
+  quality: string;
+  size_mb: number;
+  installed: boolean;
+}
+
+export type VoiceType = "catalog" | "preset" | "clone";
+
+export interface EngineStatus {
+  name: string;
+  installed: boolean;
+  voice_type: VoiceType;
+  voices: VoiceInfo[];
+}
+
 export interface EngineInfo {
   name: string;
   type: "tts" | "llm";

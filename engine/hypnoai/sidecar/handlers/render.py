@@ -120,13 +120,23 @@ def _run_render_job(job: RenderJob, params: dict, cfg: Config) -> None:
 def handle_render_start(session: SidecarSession, params: dict[str, Any]) -> dict:
     """Start an async render job.
 
-    Required params: script_path, output_path
+    Required params: script_path OR script_content, output_path
     Optional params: variables, voice, engine, speed, format
     Returns: {job_id}
     """
-    for key in ("script_path", "output_path"):
-        if key not in params:
-            raise ValueError(f"Missing required param {key!r}")
+    if "output_path" not in params:
+        raise ValueError("Missing required param 'output_path'")
+
+    if "script_content" in params:
+        # Write inline content to a temp file so the rest of the pipeline is unchanged
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".hypno", delete=False, encoding="utf-8"
+        )
+        tmp.write(params["script_content"])
+        tmp.close()
+        params = {**params, "script_path": tmp.name}
+    elif "script_path" not in params:
+        raise ValueError("Missing required param 'script_path' or 'script_content'")
 
     cfg = Config.load()
 
