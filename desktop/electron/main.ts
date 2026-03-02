@@ -99,7 +99,7 @@ function createWindow(): void {
     width: 1280, height: 800, minWidth: 900, minHeight: 600,
     title: 'HypnoAI',
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,

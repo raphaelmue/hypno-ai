@@ -7,10 +7,11 @@
   "packageManager": "yarn@4.12.0",
   "scripts": {
     "vite:dev": "vite",
-    "electron:compile": "tsc -p tsconfig.electron.json && tsc -p tsconfig.preload.json",
+    "preload:compile": "tsc -p tsconfig.preload.json && node -e \"require('fs').renameSync('dist-electron/preload.js','dist-electron/preload.cjs')\"",
+    "electron:compile": "tsc -p tsconfig.electron.json && yarn preload:compile",
     "electron:dev": "wait-on http://localhost:1420 && electron .",
     "dev": "concurrently -n vite,electron -c blue,green --kill-others \"yarn vite:dev\" \"yarn electron:compile && yarn electron:dev\"",
-    "build": "tsc -p tsconfig.electron.json && tsc -p tsconfig.preload.json && vite build",
+    "build": "tsc -p tsconfig.electron.json && yarn preload:compile && vite build",
     "build:dist": "yarn build && electron-builder",
     "preview": "vite preview",
     "test": "vitest run",
