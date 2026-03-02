@@ -1,8 +1,10 @@
 /**
  * Voice & Render Settings panel — engine/voice dropdowns, speed/pitch sliders,
- * progress bar, and Render/Preview buttons.
+ * progress bar, audio player, and Render button.
  */
+import { useRef } from "react";
 import type { RenderProgress, RenderSettings, VoiceInfo } from "../types";
+import { localFileUrl, showSaveDialog } from "../hooks/useRpc";
 
 interface Props {
   settings: RenderSettings;
@@ -13,11 +15,12 @@ interface Props {
   isRendering: boolean;
   onRender: () => void;
   onCancelRender: () => void;
-  onPreview: () => void;
   outputPath: string;
   onOutputPathChange: (path: string) => void;
   onManageVoices?: () => void;
   onEngineChange?: (engine: string) => void;
+  onClearCache: () => void;
+  onOpenInFolder: () => void;
 }
 
 const EMOTIONS = ["", "soothing", "warm", "whisper", "confident", "calm"];
@@ -113,11 +116,12 @@ export function VoiceRenderSettings({
   isRendering,
   onRender,
   onCancelRender,
-  onPreview,
   outputPath,
   onOutputPathChange,
   onManageVoices,
   onEngineChange,
+  onClearCache,
+  onOpenInFolder,
 }: Props) {
   const set = (patch: Partial<RenderSettings>) =>
     onSettingsChange({ ...settings, ...patch });
@@ -125,6 +129,20 @@ export function VoiceRenderSettings({
   const filteredVoices = voices.filter(
     (v) => v.engine === settings.engine || settings.engine === "all"
   );
+
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const isDone = renderProgress?.state === "done";
+
+  const handleBrowse = async () => {
+    const result = await showSaveDialog({
+      title: "Save session as…",
+      defaultPath: outputPath || "session.wav",
+      filters: [{ name: "Audio", extensions: ["wav"] }],
+    });
+    if (!result.canceled && result.filePath) {
+      onOutputPathChange(result.filePath);
+    }
+  };
 
   return (
     <div className="p-3 flex flex-col gap-3">
@@ -216,31 +234,33 @@ export function VoiceRenderSettings({
         format={(v) => `${v > 0 ? "+" : ""}${v.toFixed(1)}st`}
       />
 
-      {/* Output path */}
+      {/* Output path + browse */}
       <div>
         <label className="block text-xs text-surface-400 mb-1">Output file</label>
-        <input
-          type="text"
-          value={outputPath}
-          onChange={(e) => onOutputPathChange(e.target.value)}
-          className="w-full px-2 py-1 text-xs bg-surface-800 border border-surface-700 rounded text-surface-100 font-mono focus:outline-none focus:border-accent"
-          placeholder="session.wav"
-        />
+        <div className="flex gap-1">
+          <input
+            type="text"
+            value={outputPath}
+            onChange={(e) => onOutputPathChange(e.target.value)}
+            className="flex-1 min-w-0 px-2 py-1 text-xs bg-surface-800 border border-surface-700 rounded text-surface-100 font-mono focus:outline-none focus:border-accent"
+            placeholder="Click Browse…"
+            readOnly
+          />
+          <button
+            onClick={handleBrowse}
+            className="px-2 py-1 text-xs rounded bg-surface-700 hover:bg-surface-600 text-surface-200 shrink-0"
+          >
+            Browse
+          </button>
+        </div>
       </div>
 
-      {/* Action buttons */}
-      <div className="flex gap-2 pt-1">
-        <button
-          onClick={onPreview}
-          disabled={isRendering || !settings.voice}
-          className="flex-1 py-1.5 text-xs rounded bg-surface-700 hover:bg-surface-600 text-surface-200 disabled:opacity-50"
-        >
-          ▶ Preview
-        </button>
+      {/* Render / Cancel button */}
+      <div className="pt-1">
         {isRendering ? (
           <button
             onClick={onCancelRender}
-            className="flex-1 py-1.5 text-xs rounded bg-danger/20 hover:bg-danger/30 text-danger"
+            className="w-full py-1.5 text-xs rounded bg-danger/20 hover:bg-danger/30 text-danger"
           >
             ✕ Cancel
           </button>
@@ -248,7 +268,7 @@ export function VoiceRenderSettings({
           <button
             onClick={onRender}
             disabled={!settings.voice || !outputPath}
-            className="flex-1 py-1.5 text-xs rounded bg-accent text-surface-950 hover:bg-accent-hover font-medium disabled:opacity-50"
+            className="w-full py-1.5 text-xs rounded bg-accent text-surface-950 hover:bg-accent-hover font-medium disabled:opacity-50"
           >
             ⏺ Render
           </button>
@@ -257,6 +277,37 @@ export function VoiceRenderSettings({
 
       {/* Progress bar */}
       {renderProgress && <ProgressBar progress={renderProgress} />}
+
+      {/* Audio player — shown after a successful render */}
+      {isDone && outputPath && (
+        <div className="border border-surface-700 rounded-lg p-2 bg-surface-800 flex flex-col gap-2">
+          <div className="text-xs text-surface-400 font-medium">Playback</div>
+          <audio
+            ref={audioRef}
+            src={localFileUrl(outputPath)}
+            controls
+            className="w-full h-8"
+            style={{ colorScheme: "dark" }}
+          />
+          <button
+            onClick={onOpenInFolder}
+            className="w-full py-1 text-xs rounded bg-surface-700 hover:bg-surface-600 text-surface-300"
+          >
+            Show in Folder
+          </button>
+        </div>
+      )}
+
+      {/* Clear cache — maintenance action */}
+      <div className="pt-1 border-t border-surface-800">
+        <button
+          onClick={onClearCache}
+          className="w-full py-1 text-[10px] text-surface-500 hover:text-surface-300 hover:bg-surface-800 rounded transition-colors"
+          title="Delete all cached render chunks to free disk space"
+        >
+          Clear render cache
+        </button>
+      </div>
     </div>
   );
 }

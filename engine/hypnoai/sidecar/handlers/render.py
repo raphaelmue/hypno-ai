@@ -206,6 +206,19 @@ def handle_render_cancel(session: SidecarSession, params: dict[str, Any]) -> dic
     return {"cancelled": False}
 
 
+def handle_cache_clear(session: SidecarSession, params: dict[str, Any]) -> dict:
+    """Clear the paragraph-level render cache.
+
+    Returns: {cleared_files, freed_mb}
+    """
+    from ...render.cache import RenderCache
+    cfg = Config.load()
+    cache = RenderCache(cfg.cache_dir)
+    freed_mb = cache.size_mb()
+    cleared = cache.clear()
+    return {"cleared_files": cleared, "freed_mb": freed_mb}
+
+
 def handle_render_preview(session: SidecarSession, params: dict[str, Any]) -> dict:
     """Render a single paragraph for quick preview.
 

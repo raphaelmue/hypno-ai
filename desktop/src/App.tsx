@@ -27,7 +27,7 @@ import type {
   SessionVariables,
   VoiceInfo,
 } from "./types";
-import { useRpc } from "./hooks/useRpc";
+import { useRpc, showInFolder } from "./hooks/useRpc";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -68,7 +68,7 @@ export default function App() {
 
   // Render state
   const [renderSettings, setRenderSettings] = useState<RenderSettings>(DEFAULT_RENDER_SETTINGS);
-  const [outputPath, setOutputPath] = useState("session.wav");
+  const [outputPath, setOutputPath] = useState("");
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [renderProgress, setRenderProgress] = useState<RenderProgress | null>(null);
   const [isRendering, setIsRendering] = useState(false);
@@ -239,25 +239,18 @@ export default function App() {
     setActiveJobId(null);
   }, [activeJobId, rpc]);
 
-  const handlePreview = useCallback(async () => {
-    // Preview the first non-directive paragraph
-    const firstPara = scriptContent
-      .split(/\n\n+/)
-      .find((p) => p.trim() && !p.trim().startsWith("@{"));
-    if (!firstPara) return;
+  const handleClearCache = useCallback(async () => {
     try {
-      const result = await rpc.renderPreview(
-        firstPara.trim(),
-        renderSettings.voice,
-        renderSettings.engine,
-        renderSettings.speed
-      );
-      // TODO: play result.audio_path via Tauri audio API
-      console.log("Preview ready:", result.audio_path);
+      const result = await rpc.cacheClear();
+      console.log(`Cache cleared: ${result.cleared_files} files, ${result.freed_mb} MB freed`);
     } catch (e) {
-      console.error("Preview failed:", e);
+      console.error("Cache clear failed:", e);
     }
-  }, [scriptContent, renderSettings, rpc]);
+  }, [rpc]);
+
+  const handleOpenInFolder = useCallback(() => {
+    if (outputPath) showInFolder(outputPath);
+  }, [outputPath]);
 
   // ---------------------------------------------------------------------------
   // AI generation
@@ -338,9 +331,6 @@ export default function App() {
               onChange={setScriptContent}
               lintResult={lintResult}
               onLint={handleLint}
-              onPreviewParagraph={(text) =>
-                rpc.renderPreview(text, renderSettings.voice, renderSettings.engine, renderSettings.speed).catch(console.error)
-              }
               isLinting={isLinting}
             />
           </div>
@@ -356,11 +346,12 @@ export default function App() {
               isRendering={isRendering}
               onRender={handleRender}
               onCancelRender={handleCancelRender}
-              onPreview={handlePreview}
               outputPath={outputPath}
               onOutputPathChange={setOutputPath}
               onManageVoices={() => setShowVoiceManager(true)}
               onEngineChange={handleEngineChange}
+              onClearCache={handleClearCache}
+              onOpenInFolder={handleOpenInFolder}
             />
           </div>
         </div>

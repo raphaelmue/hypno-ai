@@ -16,6 +16,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   }): Promise<{ canceled: boolean; filePaths: string[] }> =>
     ipcRenderer.invoke('show-open-dialog', options),
 
+  showSaveDialog: (options: {
+    title?: string;
+    defaultPath?: string;
+    filters?: { name: string; extensions: string[] }[];
+  }): Promise<{ canceled: boolean; filePath?: string }> =>
+    ipcRenderer.invoke('show-save-dialog', options),
+
+  showInFolder: (filePath: string): Promise<void> =>
+    ipcRenderer.invoke('show-in-folder', filePath),
+
   rpcStream: (
     method: string,
     params: Record<string, unknown>,

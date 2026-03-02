@@ -8,6 +8,8 @@ function newStreamId() {
 electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     rpcCall: (method, params) => electron_1.ipcRenderer.invoke('rpc-call', method, params),
     showOpenDialog: (options) => electron_1.ipcRenderer.invoke('show-open-dialog', options),
+    showSaveDialog: (options) => electron_1.ipcRenderer.invoke('show-save-dialog', options),
+    showInFolder: (filePath) => electron_1.ipcRenderer.invoke('show-in-folder', filePath),
     rpcStream: (method, params, onChunk) => {
         const streamId = newStreamId();
         return new Promise((resolve, reject) => {

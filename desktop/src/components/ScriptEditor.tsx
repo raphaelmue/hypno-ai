@@ -15,7 +15,6 @@ interface Props {
   onChange: (value: string) => void;
   lintResult: LintResult | null;
   onLint: () => void;
-  onPreviewParagraph: (text: string) => void;
   isLinting: boolean;
 }
 
@@ -25,12 +24,10 @@ export function ScriptEditor({
   onChange,
   lintResult,
   onLint,
-  onPreviewParagraph,
   isLinting,
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [showHeatmap, setShowHeatmap] = useState(true);
-  const [selectedParagraph, setSelectedParagraph] = useState<string | null>(null);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -58,30 +55,6 @@ export function ScriptEditor({
     [value, onChange]
   );
 
-  // Extract the paragraph the cursor is in for preview
-  const handleCursorActivity = useCallback(
-    (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
-      const el = e.currentTarget;
-      const pos = el.selectionStart;
-      const paragraphs = value.split(/\n\n+/);
-      let offset = 0;
-      for (const para of paragraphs) {
-        const end = offset + para.length;
-        if (pos >= offset && pos <= end) {
-          const text = para
-            .split("\n")
-            .filter((l) => !l.startsWith("@{"))
-            .join(" ")
-            .trim();
-          setSelectedParagraph(text || null);
-          break;
-        }
-        offset = end + 2;
-      }
-    },
-    [value]
-  );
-
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
@@ -106,15 +79,6 @@ export function ScriptEditor({
         >
           {isLinting ? "Checking…" : "Lint"}
         </button>
-        {selectedParagraph && (
-          <button
-            onClick={() => onPreviewParagraph(selectedParagraph)}
-            className="text-xs px-2 py-1 rounded bg-accent/20 text-accent hover:bg-accent/30"
-            title="Preview selected paragraph"
-          >
-            Preview ▶
-          </button>
-        )}
       </div>
 
       {/* Lint warnings banner */}
@@ -151,8 +115,6 @@ export function ScriptEditor({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            onClick={handleCursorActivity}
-            onKeyUp={handleCursorActivity}
             className="w-full h-full min-h-[300px] resize-none bg-transparent text-surface-100 font-mono text-sm leading-6 p-4 outline-none caret-accent"
             placeholder={`@{voice: en_US-amy-medium}\n@{speed: 0.85}\n\nClose your eyes and take a deep breath.\n\n@{pause: 4s}\n\nNow slowly release...`}
             spellCheck={false}

@@ -27,6 +27,12 @@ declare global {
         filters?: { name: string; extensions: string[] }[];
         properties?: string[];
       }) => Promise<{ canceled: boolean; filePaths: string[] }>;
+      showSaveDialog: (options: {
+        title?: string;
+        defaultPath?: string;
+        filters?: { name: string; extensions: string[] }[];
+      }) => Promise<{ canceled: boolean; filePath?: string }>;
+      showInFolder: (filePath: string) => Promise<void>;
     };
   }
 }
@@ -63,7 +69,6 @@ import type {
   LintResult,
   ModelList,
   ModelStatus,
-  PreviewResult,
   RenderProgress,
   VoiceInfo,
 } from "../types";
@@ -114,19 +119,9 @@ export function useRpc() {
     []
   );
 
-  const renderPreview = useCallback(
-    (
-      text: string,
-      voice: string,
-      engine: string,
-      speed: number
-    ): Promise<PreviewResult> => {
-      return rpcCall<PreviewResult>("render.preview", {
-        text,
-        voice,
-        engine,
-        speed,
-      });
+  const cacheClear = useCallback(
+    (): Promise<{ cleared_files: number; freed_mb: number }> => {
+      return rpcCall("cache.clear", {});
     },
     []
   );
@@ -237,7 +232,7 @@ export function useRpc() {
     renderStart,
     renderProgress,
     renderCancel,
-    renderPreview,
+    cacheClear,
     listVoices,
     cloneVoice,
     voicesEngines,
@@ -264,4 +259,26 @@ export function showOpenDialog(options: {
     return Promise.resolve({ canceled: true, filePaths: [] });
   }
   return window.electronAPI.showOpenDialog(options);
+}
+
+export function showSaveDialog(options: {
+  title?: string;
+  defaultPath?: string;
+  filters?: { name: string; extensions: string[] }[];
+}): Promise<{ canceled: boolean; filePath?: string }> {
+  if (!window.electronAPI?.showSaveDialog) {
+    return Promise.resolve({ canceled: true });
+  }
+  return window.electronAPI.showSaveDialog(options);
+}
+
+export function showInFolder(filePath: string): Promise<void> {
+  if (!window.electronAPI?.showInFolder) return Promise.resolve();
+  return window.electronAPI.showInFolder(filePath);
+}
+
+/** Convert an absolute local file path to a hypnoai-local:// URL the renderer can load. */
+export function localFileUrl(filePath: string): string {
+  const normalized = filePath.replace(/\\/g, '/');
+  return `hypnoai-local://localhost/${encodeURIComponent(normalized)}`;
 }

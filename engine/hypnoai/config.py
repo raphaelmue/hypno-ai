@@ -6,8 +6,16 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# Runtime state (mutable at runtime, separate from the user's config file)
-_STATE_FILE = Path("hypnoai_state.json")
+# User data directory — all runtime data lives here
+_HYPNOAI_DIR = Path.home() / ".hypnoai"
+_STATE_FILE = _HYPNOAI_DIR / "state.json"
+
+
+def _ensure_hypnoai_dir() -> None:
+    """Create ~/.hypnoai/ and its subdirectories if they don't exist."""
+    _HYPNOAI_DIR.mkdir(parents=True, exist_ok=True)
+    (_HYPNOAI_DIR / "voices").mkdir(exist_ok=True)
+    (_HYPNOAI_DIR / "cache").mkdir(exist_ok=True)
 
 
 @dataclass
@@ -15,8 +23,8 @@ class Config:
     """Application configuration loaded from hypnoai.toml."""
 
     # ------------------------------------------------------------------ Phase 1
-    voices_dir: Path = field(default_factory=lambda: Path("engine/voices"))
-    cache_dir: Path = field(default_factory=lambda: Path("engine/cache"))
+    voices_dir: Path = field(default_factory=lambda: Path.home() / ".hypnoai" / "voices")
+    cache_dir: Path = field(default_factory=lambda: Path.home() / ".hypnoai" / "cache")
     default_engine: str = "piper"
     default_voice: str = "en_US-amy-medium"
     default_speed: float = 1.0
@@ -62,6 +70,7 @@ class Config:
         ``hypnoai engines use <name>`` survives across invocations without
         requiring the user to edit their config file.
         """
+        _ensure_hypnoai_dir()
         if path is None:
             path = Path("hypnoai.toml")
         if not path.exists():
@@ -96,6 +105,7 @@ class Config:
     @classmethod
     def save_state(cls, key: str, value) -> None:
         """Persist a single key into the runtime state file."""
+        _ensure_hypnoai_dir()
         state: dict = {}
         try:
             with open(_STATE_FILE) as f:

@@ -1,9 +1,14 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell, protocol, net } from 'electron';
 import { spawn } from 'child_process';
 import * as readline from 'readline';
 import * as path from 'path';
 import * as fs from 'fs';
 import { fileURLToPath } from 'url';
+// Register custom scheme for serving local audio files to the renderer.
+// Must be called before app is ready.
+protocol.registerSchemesAsPrivileged([
+    { scheme: 'hypnoai-local', privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true } },
+]);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // Sidecar state (mirrors Rust SidecarState)
@@ -103,6 +108,14 @@ ipcMain.handle('rpc-stream', async (event, method, params, streamId) => {
 ipcMain.handle('show-open-dialog', async (_e, options) => {
     return dialog.showOpenDialog(options);
 });
+// Native save dialog
+ipcMain.handle('show-save-dialog', async (_e, options) => {
+    return dialog.showSaveDialog(options);
+});
+// Reveal file in native file manager
+ipcMain.handle('show-in-folder', async (_e, filePath) => {
+    shell.showItemInFolder(filePath);
+});
 function createWindow() {
     const win = new BrowserWindow({
         width: 1280, height: 800, minWidth: 900, minHeight: 600,
@@ -122,7 +135,18 @@ function createWindow() {
         win.loadFile(path.join(__dirname, '../dist/index.html'));
     }
 }
-app.whenReady().then(() => { startSidecar(); createWindow(); });
+app.whenReady().then(() => {
+    // Serve local files via hypnoai-local:// so the renderer can play audio
+    protocol.handle('hypnoai-local', (request) => {
+        const url = new URL(request.url);
+        const filePath = decodeURIComponent(url.pathname.slice(1)); // strip leading /
+        const normalized = filePath.replace(/\\/g, '/');
+        const fileUrl = `file://${normalized.startsWith('/') ? '' : '/'}${normalized}`;
+        return net.fetch(fileUrl);
+    });
+    startSidecar();
+    createWindow();
+});
 app.on('window-all-closed', () => {
     sidecar.process?.kill();
     if (process.platform !== 'darwin')

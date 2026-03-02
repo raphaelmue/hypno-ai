@@ -24,6 +24,7 @@ def main() -> None:
         handle_render_progress,
         handle_render_cancel,
         handle_render_preview,
+        handle_cache_clear,
     )
     from .handlers.voices import (
         handle_voices_list,
@@ -48,6 +49,7 @@ def main() -> None:
     server.register("render.progress", handle_render_progress)
     server.register("render.cancel", handle_render_cancel)
     server.register("render.preview", handle_render_preview)
+    server.register("cache.clear", handle_cache_clear)
     server.register("voices.list", handle_voices_list)
     server.register("voices.engines", handle_voices_engines)
     server.register("voices.clone", handle_voices_clone)
