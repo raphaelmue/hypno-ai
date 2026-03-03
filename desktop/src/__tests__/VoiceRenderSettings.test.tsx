@@ -45,9 +45,10 @@ function makeProps(overrides: Record<string, unknown> = {}) {
     isRendering: false,
     onRender: vi.fn(),
     onCancelRender: vi.fn(),
-    onPreview: vi.fn(),
     outputPath: "session.wav",
     onOutputPathChange: vi.fn(),
+    onClearCache: vi.fn(),
+    onOpenInFolder: vi.fn(),
     ...overrides,
   };
 }
@@ -83,7 +84,7 @@ describe("VoiceRenderSettings", () => {
 
   it("render button is enabled when voice and outputPath are set", () => {
     render(<VoiceRenderSettings {...makeProps()} />);
-    expect(screen.getByRole("button", { name: /render/i })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: /render$/i })).not.toBeDisabled();
   });
 
   it("render button is disabled when no voice is selected", () => {
@@ -92,19 +93,19 @@ describe("VoiceRenderSettings", () => {
         {...makeProps({ settings: { ...SETTINGS, voice: "" } })}
       />
     );
-    expect(screen.getByRole("button", { name: /render/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /render$/i })).toBeDisabled();
   });
 
   it("render button is disabled when outputPath is empty", () => {
     render(<VoiceRenderSettings {...makeProps({ outputPath: "" })} />);
-    expect(screen.getByRole("button", { name: /render/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /render$/i })).toBeDisabled();
   });
 
   it("calls onRender when render button is clicked", async () => {
     const user = userEvent.setup();
     const onRender = vi.fn();
     render(<VoiceRenderSettings {...makeProps({ onRender })} />);
-    await user.click(screen.getByRole("button", { name: /render/i }));
+    await user.click(screen.getByRole("button", { name: /render$/i }));
     expect(onRender).toHaveBeenCalledOnce();
   });
 
@@ -128,34 +129,6 @@ describe("VoiceRenderSettings", () => {
     );
     await user.click(screen.getByRole("button", { name: /cancel/i }));
     expect(onCancelRender).toHaveBeenCalledOnce();
-  });
-
-  // --- Preview button ---
-
-  it("calls onPreview when preview button is clicked", async () => {
-    const user = userEvent.setup();
-    const onPreview = vi.fn();
-    render(<VoiceRenderSettings {...makeProps({ onPreview })} />);
-    await user.click(screen.getByRole("button", { name: /preview/i }));
-    expect(onPreview).toHaveBeenCalledOnce();
-  });
-
-  it("preview button is disabled when no voice is selected", () => {
-    render(
-      <VoiceRenderSettings
-        {...makeProps({ settings: { ...SETTINGS, voice: "" } })}
-      />
-    );
-    expect(
-      screen.getByRole("button", { name: /preview/i })
-    ).toBeDisabled();
-  });
-
-  it("preview button is disabled while rendering", () => {
-    render(<VoiceRenderSettings {...makeProps({ isRendering: true })} />);
-    expect(
-      screen.getByRole("button", { name: /preview/i })
-    ).toBeDisabled();
   });
 
   // --- Progress bar ---

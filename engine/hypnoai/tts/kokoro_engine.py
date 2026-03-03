@@ -175,7 +175,8 @@ class KokoroEngine:
 
     def _lang_code_for_voice(self, voice: str) -> str:
         """Return the kokoro lang_code letter for a given voice ID."""
-        return voice[0] if voice else "a"
+        prefix = voice[0] if voice else "a"
+        return prefix if prefix in _LANG_CODE_MAP else "a"
 
     def _language_for_voice(self, voice: str) -> str:
         """Return the BCP-47-style language tag for a given voice ID."""

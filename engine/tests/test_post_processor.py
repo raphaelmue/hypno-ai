@@ -144,12 +144,16 @@ class TestPostProcessor:
         pp.process([src], out)
         assert out.exists()
 
-    def test_sample_rate_mismatch_raises(self, tmp_path):
+    def test_sample_rate_mismatch_resamples(self, tmp_path):
+        """Mismatched input sample rates are resampled to the first file's rate."""
         a = tmp_path / "a.wav"
         b = tmp_path / "b.wav"
+        out = tmp_path / "out.wav"
         sf.write(str(a), np.zeros(100, dtype=np.float32), 22050, subtype="FLOAT")
         sf.write(str(b), np.zeros(100, dtype=np.float32), 44100, subtype="FLOAT")
-        cfg = PostProcessConfig(normalize=False, limit=False)
+        cfg = PostProcessConfig(crossfade_ms=0, normalize=False, limit=False)
         pp = PostProcessor(cfg, sample_rate=22050)
-        with pytest.raises(ValueError, match="Sample rate mismatch"):
-            pp.process([a, b], tmp_path / "out.wav")
+        pp.process([a, b], out)
+        assert out.exists()
+        _, sr = sf.read(str(out))
+        assert sr == 22050

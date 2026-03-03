@@ -35,10 +35,10 @@ def test_voices_list_returns_list(session):
         is_custom=False,
     )
 
-    with patch("hypnoai.sidecar.handlers.voices.VoiceRegistry") as mock_reg_cls:
-        mock_registry = MagicMock()
-        mock_registry.list_voices.return_value = [mock_voice]
-        mock_reg_cls.return_value = mock_registry
+    with patch("hypnoai.tts.piper_engine.PiperEngine") as mock_piper_cls:
+        mock_engine = MagicMock()
+        mock_engine.list_voices.return_value = [mock_voice]
+        mock_piper_cls.return_value = mock_engine
 
         result = handle_voices_list(session, {"engine": "piper"})
 
@@ -52,23 +52,25 @@ def test_voices_list_returns_list(session):
     assert v["engine"] == "piper"
 
 
-def test_voices_list_empty(session):
-    with patch("hypnoai.sidecar.handlers.voices.VoiceRegistry") as mock_reg_cls:
-        mock_registry = MagicMock()
-        mock_registry.list_voices.return_value = []
-        mock_reg_cls.return_value = mock_registry
+def test_voices_list_empty(session, tmp_path):
+    """Clone engine with no .wav files returns an empty voice list."""
+    from hypnoai.config import Config
 
-        result = handle_voices_list(session, {"engine": "kokoro"})
+    cfg = Config(voices_dir=tmp_path)
+    with patch("hypnoai.sidecar.handlers.voices.Config") as mock_cfg_cls:
+        mock_cfg_cls.load.return_value = cfg
+
+        result = handle_voices_list(session, {"engine": "coqui"})
 
     assert result["voices"] == []
 
 
 def test_voices_list_default_engine(session):
     """If no engine param is given, defaults gracefully."""
-    with patch("hypnoai.sidecar.handlers.voices.VoiceRegistry") as mock_reg_cls:
-        mock_registry = MagicMock()
-        mock_registry.list_voices.return_value = []
-        mock_reg_cls.return_value = mock_registry
+    with patch("hypnoai.tts.piper_engine.PiperEngine") as mock_piper_cls:
+        mock_engine = MagicMock()
+        mock_engine.list_voices.return_value = []
+        mock_piper_cls.return_value = mock_engine
 
         result = handle_voices_list(session, {})
 
