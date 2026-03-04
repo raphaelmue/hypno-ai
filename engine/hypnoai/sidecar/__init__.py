@@ -42,7 +42,13 @@ def main() -> None:
         handle_models_download_progress,
         handle_models_remove,
     )
-    from .handlers.engines import handle_engines_active, handle_engines_use
+    from .handlers.engines import (
+        handle_engines_active,
+        handle_engines_use,
+        handle_engines_list,
+        handle_engines_install,
+        handle_engines_uninstall,
+    )
     from .handlers.sessions import (
         handle_sessions_list,
         handle_sessions_create,
@@ -68,6 +74,9 @@ def main() -> None:
     server.register("voices.add", handle_voices_add)
     server.register("engines.active", handle_engines_active)
     server.register("engines.use", handle_engines_use)
+    server.register("engines.list", handle_engines_list)
+    server.register("engines.install", handle_engines_install)
+    server.register("engines.uninstall", handle_engines_uninstall)
     server.register("ai.generate", handle_ai_generate)
     server.register("models.status", handle_models_status)
     server.register("models.list", handle_models_list)

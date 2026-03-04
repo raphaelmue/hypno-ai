@@ -1,4 +1,12 @@
-"""models.* handlers — TTS engine and voice-pack lifecycle management."""
+"""models.* handlers — Piper voice-pack lifecycle + system status.
+
+Engine package install/uninstall is handled by engines.* handlers.
+This module manages:
+  - System status (GPU, disk)
+  - Piper voice-pack async download + progress
+  - Piper voice-pack removal
+  - Combined installed/available listing (used by the GUI ModelManager component)
+"""
 from __future__ import annotations
 
 import threading
@@ -7,76 +15,14 @@ from pathlib import Path
 from typing import Any
 
 from ...config import Config
-from ...resources.model_manager import (
-    BarkModelManager,
-    CoquiModelManager,
-    F5TTSModelManager,
-    KokoroModelManager,
-    PiperModelManager,
-    StyleTTSModelManager,
-)
+from ...resources.engine_manager import ENGINES, is_installed
+from ...resources.model_manager import PiperModelManager
 from ..session import DownloadJob, SidecarSession
 
-# ---------------------------------------------------------------------------
-# Engine metadata (mirrors cli._ENGINE_CAPABILITIES)
-# ---------------------------------------------------------------------------
 
-_ENGINE_INFO: list[dict] = [
-    {
-        "name": "piper",
-        "type": "tts",
-        "requires_gpu": False,
-        "vram_mb": 0,
-        "size_mb": 80,
-        "license": "MIT",
-        "install_hint": "pip install hypnoai[piper]",
-    },
-    {
-        "name": "coqui-xtts-v2",
-        "type": "tts",
-        "requires_gpu": True,
-        "vram_mb": 4096,
-        "size_mb": 1800,
-        "license": "CPML",
-        "install_hint": "pip install hypnoai[coqui]",
-    },
-    {
-        "name": "kokoro",
-        "type": "tts",
-        "requires_gpu": True,
-        "vram_mb": 2048,
-        "size_mb": 500,
-        "license": "Apache-2.0",
-        "install_hint": "pip install hypnoai[kokoro]",
-    },
-    {
-        "name": "styletts2",
-        "type": "tts",
-        "requires_gpu": True,
-        "vram_mb": 3072,
-        "size_mb": 1200,
-        "license": "MIT",
-        "install_hint": "pip install hypnoai[styletts]",
-    },
-    {
-        "name": "f5tts",
-        "type": "tts",
-        "requires_gpu": True,
-        "vram_mb": 4096,
-        "size_mb": 1500,
-        "license": "MIT",
-        "install_hint": "pip install hypnoai[f5tts]",
-    },
-    {
-        "name": "bark",
-        "type": "tts",
-        "requires_gpu": True,
-        "vram_mb": 6144,
-        "size_mb": 6000,
-        "license": "MIT",
-        "install_hint": "pip install hypnoai[bark]",
-    },
-]
+# ---------------------------------------------------------------------------
+# System helpers
+# ---------------------------------------------------------------------------
 
 
 def _gpu_available() -> bool:
@@ -104,34 +50,6 @@ def _disk_used_mb(voices_dir: Path) -> float:
     return total / (1024 * 1024)
 
 
-def _piper_installed() -> bool:
-    try:
-        import piper  # type: ignore  # noqa: F401
-        return True
-    except ImportError:
-        return False
-
-
-def _engine_installed(name: str) -> bool:
-    """Check if an engine's Python package is importable."""
-    pkg_map = {
-        "piper": "piper",
-        "coqui-xtts-v2": "TTS",
-        "kokoro": "kokoro",
-        "styletts2": "styletts2",
-        "f5tts": "f5_tts",
-        "bark": "bark",
-    }
-    pkg = pkg_map.get(name)
-    if not pkg:
-        return False
-    try:
-        __import__(pkg)
-        return True
-    except ImportError:
-        return False
-
-
 # ---------------------------------------------------------------------------
 # Handlers
 # ---------------------------------------------------------------------------
@@ -151,9 +69,16 @@ def handle_models_status(session: SidecarSession, params: dict[str, Any]) -> dic
 
 
 def handle_models_list(session: SidecarSession, params: dict[str, Any]) -> dict:
-    """List installed engines/voice packs and the downloadable catalog.
+    """List installed Piper voice packs and engine install status.
 
     Returns: {installed: [...], available_for_download: [...]}
+
+    ``installed`` contains:
+      - Piper voice packs (type="voice")
+      - Installed engine packages (type="engine")
+
+    ``available_for_download`` lists engines whose Python package is not yet
+    installed.  Piper voices appear in the ``voices.*`` handlers instead.
     """
     cfg = Config.load()
 
@@ -174,35 +99,33 @@ def handle_models_list(session: SidecarSession, params: dict[str, Any]) -> dict:
         for m in installed_piper
     ]
 
-    # Add installed engine packages (no voice packs — pip-managed)
-    for eng in _ENGINE_INFO:
-        if eng["name"] != "piper" and _engine_installed(eng["name"]):
-            installed.append(
-                {
-                    "name": eng["name"],
-                    "type": eng["type"],
-                    "engine": eng["name"],
-                    "size_mb": eng["size_mb"],
-                    "loaded": False,
-                    "voices": [],
-                    "license": eng["license"],
-                }
-            )
+    # Installed engine packages
+    for spec in ENGINES.values():
+        if spec.name != "piper" and is_installed(spec.name):
+            installed.append({
+                "name": spec.name,
+                "type": "engine",
+                "engine": spec.name,
+                "size_mb": spec.model_size_gb * 1024,
+                "loaded": False,
+                "voices": [],
+                "license": spec.license,
+            })
 
-    # Available for download (engines not yet installed)
-    available: list[dict] = []
-    for eng in _ENGINE_INFO:
-        if not _engine_installed(eng["name"]):
-            available.append(
-                {
-                    "name": eng["name"],
-                    "type": eng["type"],
-                    "size_mb": eng["size_mb"],
-                    "license": eng["license"],
-                    "requires_gpu": eng["requires_gpu"],
-                    "install_hint": eng["install_hint"],
-                }
-            )
+    # Engines whose Python package is not yet installed
+    available: list[dict] = [
+        {
+            "name": spec.name,
+            "type": "engine",
+            "size_mb": spec.model_size_gb * 1024,
+            "license": spec.license,
+            "requires_gpu": spec.vram_mb > 0,
+            "description": spec.description,
+            "install_hint": f"pip install hypnoai[{spec.pip_extra}]",
+        }
+        for spec in ENGINES.values()
+        if spec.name != "piper" and not is_installed(spec.name)
+    ]
 
     return {"installed": installed, "available_for_download": available}
 
@@ -220,7 +143,7 @@ def handle_models_download(session: SidecarSession, params: dict[str, Any]) -> d
     cfg = Config.load()
     piper_mgr = PiperModelManager(cfg.voices_dir)
 
-    # Estimate size from catalog if available
+    # Estimate size from catalog if reachable.
     size_mb = 0.0
     try:
         catalog = piper_mgr.get_catalog()
@@ -234,12 +157,8 @@ def handle_models_download(session: SidecarSession, params: dict[str, Any]) -> d
     def _run() -> None:
         job.state = "downloading"
         start = time.monotonic()
-        downloaded_bytes = [0]
-        total_bytes = [0]
 
         def _progress(dl: int, total: int) -> None:
-            downloaded_bytes[0] = dl
-            total_bytes[0] = total
             if total > 0:
                 job.progress_pct = int(dl * 100 / total)
             elapsed = time.monotonic() - start
@@ -264,7 +183,7 @@ def handle_models_download(session: SidecarSession, params: dict[str, Any]) -> d
 def handle_models_download_progress(
     session: SidecarSession, params: dict[str, Any]
 ) -> dict:
-    """Poll the progress of a download job.
+    """Poll the progress of a Piper voice-pack download job.
 
     Required params: job_id
     Returns: {state, progress_pct, speed_mbps, error}
@@ -298,7 +217,6 @@ def handle_models_remove(session: SidecarSession, params: dict[str, Any]) -> dic
     cfg = Config.load()
     piper_mgr = PiperModelManager(cfg.voices_dir)
 
-    # Measure size before removal
     freed = 0.0
     for ext in (".onnx", ".onnx.json"):
         p = cfg.voices_dir / f"{model_id}{ext}"

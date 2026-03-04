@@ -1,4 +1,4 @@
-"""Tests for ModelManager implementations."""
+"""Tests for PiperModelManager."""
 from __future__ import annotations
 
 import json
@@ -6,13 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from hypnoai.resources.model_manager import (
-    BarkModelManager,
-    CoquiModelManager,
-    F5TTSModelManager,
-    KokoroModelManager,
     ModelInfo,
     PiperModelManager,
-    StyleTTSModelManager,
 )
 
 # ---------------------------------------------------------------------------
@@ -117,101 +112,7 @@ class TestPiperModelManager:
 
 
 # ---------------------------------------------------------------------------
-# CoquiModelManager stub
-# ---------------------------------------------------------------------------
-
-
-class TestCoquiModelManager:
-    def test_engine_name(self):
-        mgr = CoquiModelManager()
-        assert mgr.engine_name == "coqui"
-
-    def test_list_installed_returns_empty(self):
-        mgr = CoquiModelManager()
-        assert mgr.list_installed() == []
-
-    def test_get_catalog_returns_single_entry(self):
-        mgr = CoquiModelManager()
-        catalog = mgr.get_catalog()
-        assert len(catalog) == 1
-        entry = next(iter(catalog.values()))
-        assert entry.engine == "coqui"
-
-    def test_download_raises_not_implemented(self):
-        mgr = CoquiModelManager()
-        with pytest.raises(NotImplementedError):
-            mgr.download("xtts_v2")
-
-    def test_remove_raises_not_implemented(self):
-        mgr = CoquiModelManager()
-        with pytest.raises(NotImplementedError):
-            mgr.remove("xtts_v2")
-
-    def test_info_returns_catalog_entry(self):
-        mgr = CoquiModelManager()
-        info = mgr.info(mgr._MODEL_ID)
-        assert info is not None
-        assert info.engine == "coqui"
-
-
-# ---------------------------------------------------------------------------
-# Stub managers — verify engine_name and consistent behavior
-# ---------------------------------------------------------------------------
-
-
-class TestStubManagers:
-    @pytest.mark.parametrize(
-        "manager_cls, expected_engine",
-        [
-            (KokoroModelManager, "kokoro"),
-            (StyleTTSModelManager, "styletts2"),
-            (F5TTSModelManager, "f5tts"),
-            (BarkModelManager, "bark"),
-        ],
-    )
-    def test_engine_name(self, manager_cls, expected_engine):
-        mgr = manager_cls()
-        assert mgr.engine_name == expected_engine
-
-    @pytest.mark.parametrize(
-        "manager_cls",
-        [KokoroModelManager, StyleTTSModelManager, F5TTSModelManager, BarkModelManager],
-    )
-    def test_get_catalog_returns_one_entry(self, manager_cls):
-        mgr = manager_cls()
-        catalog = mgr.get_catalog()
-        assert len(catalog) == 1
-
-    @pytest.mark.parametrize(
-        "manager_cls",
-        [KokoroModelManager, StyleTTSModelManager, F5TTSModelManager, BarkModelManager],
-    )
-    def test_download_raises_not_implemented(self, manager_cls):
-        mgr = manager_cls()
-        with pytest.raises(NotImplementedError):
-            mgr.download("some_model")
-
-    @pytest.mark.parametrize(
-        "manager_cls",
-        [KokoroModelManager, StyleTTSModelManager, F5TTSModelManager, BarkModelManager],
-    )
-    def test_remove_raises_not_implemented(self, manager_cls):
-        mgr = manager_cls()
-        with pytest.raises(NotImplementedError):
-            mgr.remove("some_model")
-
-    @pytest.mark.parametrize(
-        "manager_cls",
-        [KokoroModelManager, StyleTTSModelManager, F5TTSModelManager, BarkModelManager],
-    )
-    def test_list_installed_returns_list(self, manager_cls):
-        mgr = manager_cls()
-        result = mgr.list_installed()
-        assert isinstance(result, list)
-
-
-# ---------------------------------------------------------------------------
-# Backward-compatibility: ModelDownloader import
+# Backward-compatibility: ModelDownloader import shim
 # ---------------------------------------------------------------------------
 
 

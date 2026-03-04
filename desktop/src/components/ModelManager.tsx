@@ -1,9 +1,9 @@
 /**
- * Model Manager panel — browse, download, and remove TTS engines and voice packs.
+ * Model Manager panel — install/uninstall TTS engines and manage Piper voice packs.
  * Accessible at any time via the sidebar or settings (§14.4).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AvailableModel, DownloadProgress, InstalledModel, ModelList, ModelStatus } from "../types";
+import type { CatalogVoice, DownloadProgress, EngineSpec, ModelStatus } from "../types";
 import { useRpc } from "../hooks/useRpc";
 
 interface Props {
@@ -13,42 +13,53 @@ interface Props {
 
 interface ActiveDownload {
   jobId: string;
-  modelName: string;
+  voiceName: string;
   progress: DownloadProgress | null;
+}
+
+interface ActiveInstall {
+  engine: string;
+  lines: string[];
+  error: string | null;
 }
 
 export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
   const rpc = useRpc();
   const [status, setStatus] = useState<ModelStatus | null>(null);
-  const [modelList, setModelList] = useState<ModelList | null>(null);
+  const [engines, setEngines] = useState<EngineSpec[]>([]);
+  const [catalogVoices, setCatalogVoices] = useState<CatalogVoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeInstall, setActiveInstall] = useState<ActiveInstall | null>(null);
+  const [uninstallingEngine, setUninstallingEngine] = useState<string | null>(null);
   const [activeDownloads, setActiveDownloads] = useState<ActiveDownload[]>([]);
-  const [removingModel, setRemovingModel] = useState<string | null>(null);
+  const [removingVoice, setRemovingVoice] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchModels = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [statusResult, listResult] = await Promise.all([
+      const [statusResult, enginesResult, catalogResult] = await Promise.all([
         rpc.modelsStatus(),
-        rpc.modelsList(),
+        rpc.enginesList(),
+        rpc.voicesCatalog(),
       ]);
       setStatus(statusResult);
-      setModelList(listResult);
+      setEngines(enginesResult.engines);
+      setCatalogVoices(catalogResult.voices);
     } catch (e) {
-      setError(`Model information unavailable: ${e instanceof Error ? e.message : String(e)}`);
+      setError(`Failed to load: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setLoading(false);
     }
   }, [rpc]);
 
   useEffect(() => {
-    fetchModels();
-  }, [fetchModels]);
+    fetchData();
+  }, [fetchData]);
 
-  // Poll download progress for active downloads
+  // Poll download progress for active voice-pack downloads
   useEffect(() => {
     if (activeDownloads.length === 0) {
       if (pollRef.current) clearInterval(pollRef.current);
@@ -65,46 +76,82 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
           }
         })
       );
-      // Remove completed or failed downloads, refresh model list when one finishes
       const stillActive = updated.filter(
         (dl) => dl.progress?.state !== "done" && dl.progress?.state !== "failed"
       );
-      if (stillActive.length < updated.length) {
-        fetchModels();
-      }
+      if (stillActive.length < updated.length) fetchData();
       setActiveDownloads(stillActive);
     }, 1000);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [activeDownloads, rpc, fetchModels]);
+  }, [activeDownloads, rpc, fetchData]);
 
-  const handleDownload = async (model: AvailableModel) => {
+  const handleInstall = async (engineName: string) => {
+    setActiveInstall({ engine: engineName, lines: [], error: null });
     try {
-      const result = await rpc.modelsDownload(model.name);
-      const download: ActiveDownload = {
-        jobId: result.job_id,
-        modelName: model.name,
-        progress: { state: "pending", progress_pct: 0, speed_mbps: 0, error: null },
-      };
-      setActiveDownloads((prev) => [...prev, download]);
+      await rpc.enginesInstall(engineName, (line) => {
+        setActiveInstall((prev) =>
+          prev ? { ...prev, lines: [...prev.lines, line] } : null
+        );
+      });
+      setActiveInstall(null);
+      fetchData();
+    } catch (e) {
+      setActiveInstall((prev) =>
+        prev ? { ...prev, error: String(e) } : null
+      );
+    }
+  };
+
+  const handleUninstall = async (engineName: string) => {
+    if (!confirm(`Uninstall "${engineName}"?`)) return;
+    setUninstallingEngine(engineName);
+    try {
+      await rpc.enginesUninstall(engineName);
+      fetchData();
+    } catch (e) {
+      console.error("Uninstall failed:", e);
+    } finally {
+      setUninstallingEngine(null);
+    }
+  };
+
+  const handleDownloadVoice = async (voiceId: string) => {
+    try {
+      const result = await rpc.modelsDownload(voiceId);
+      setActiveDownloads((prev) => [
+        ...prev,
+        {
+          jobId: result.job_id,
+          voiceName: voiceId,
+          progress: { state: "pending", progress_pct: 0, speed_mbps: 0, error: null },
+        },
+      ]);
     } catch (e) {
       console.error("Download failed:", e);
     }
   };
 
-  const handleRemove = async (model: InstalledModel) => {
-    if (!confirm(`Remove "${model.name}"? This will free ${model.size_mb.toFixed(1)} MB.`)) return;
-    setRemovingModel(model.name);
+  const handleRemoveVoice = async (voiceId: string, sizeMb: number) => {
+    if (!confirm(`Remove voice "${voiceId}"? This will free ${sizeMb.toFixed(1)} MB.`)) return;
+    setRemovingVoice(voiceId);
     try {
-      await rpc.modelsRemove(model.name);
-      await fetchModels();
+      await rpc.modelsRemove(voiceId);
+      fetchData();
     } catch (e) {
       console.error("Remove failed:", e);
     } finally {
-      setRemovingModel(null);
+      setRemovingVoice(null);
     }
   };
+
+  const installedVoices = catalogVoices.filter((v) => v.installed);
+  const availableVoices = catalogVoices.filter((v) => !v.installed);
+  const piperInstalled = engines.find((e) => e.name === "piper")?.installed ?? true;
+  const anyEngineReady =
+    installedVoices.length > 0 ||
+    engines.some((e) => e.name !== "piper" && e.installed);
 
   return (
     <div className="flex flex-col h-full bg-surface-950">
@@ -116,7 +163,7 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
           </h2>
           {isFirstLaunch && (
             <p className="text-xs text-surface-400 mt-0.5">
-              Download your first TTS engine to get started.
+              Install a TTS engine or download a Piper voice to get started.
             </p>
           )}
         </div>
@@ -147,7 +194,7 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
         {loading && (
           <div className="text-sm text-surface-400 text-center py-8 animate-pulse">
-            Loading model information…
+            Loading…
           </div>
         )}
 
@@ -157,7 +204,27 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
           </div>
         )}
 
-        {/* Active downloads */}
+        {/* Active engine install log */}
+        {activeInstall && (
+          <section>
+            <h3 className="text-xs font-medium text-surface-400 uppercase tracking-wide mb-2">
+              Installing {activeInstall.engine}…
+            </h3>
+            <div className="bg-surface-900 rounded p-3 border border-surface-700 font-mono text-xs text-surface-300 max-h-40 overflow-y-auto">
+              {activeInstall.lines.map((line, i) => (
+                <div key={i}>{line}</div>
+              ))}
+              {activeInstall.error && (
+                <div className="text-danger mt-1">{activeInstall.error}</div>
+              )}
+              {!activeInstall.error && activeInstall.lines.length === 0 && (
+                <div className="text-surface-500 animate-pulse">Starting…</div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* Active voice-pack downloads */}
         {activeDownloads.length > 0 && (
           <section>
             <h3 className="text-xs font-medium text-surface-400 uppercase tracking-wide mb-2">
@@ -170,7 +237,7 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
                   className="bg-surface-800 rounded p-3 border border-surface-700"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-surface-200">{dl.modelName}</span>
+                    <span className="text-sm text-surface-200">{dl.voiceName}</span>
                     <span className="text-xs text-surface-400">
                       {dl.progress?.progress_pct ?? 0}%
                     </span>
@@ -192,96 +259,139 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
           </section>
         )}
 
-        {/* Installed models */}
-        {modelList && modelList.installed.length > 0 && (
+        {/* TTS Engines */}
+        {engines.length > 0 && (
           <section>
             <h3 className="text-xs font-medium text-surface-400 uppercase tracking-wide mb-2">
-              Installed · {modelList.installed.length} model{modelList.installed.length !== 1 ? "s" : ""}
+              TTS Engines
             </h3>
             <div className="flex flex-col gap-2">
-              {modelList.installed.map((model) => (
+              {engines.map((engine) => (
                 <div
-                  key={model.name}
-                  className="bg-surface-800 rounded p-3 border border-surface-700 flex items-center gap-3"
-                >
-                  <span className="text-success text-base">✓</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-surface-200 font-medium truncate">
-                      {model.name}
-                    </div>
-                    <div className="text-xs text-surface-400">
-                      {model.engine} · {model.size_mb.toFixed(0)} MB · {model.license}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleRemove(model)}
-                    disabled={removingModel === model.name}
-                    className="text-xs px-2 py-1 rounded bg-danger/10 text-danger hover:bg-danger/20 disabled:opacity-50"
-                    title="Remove"
-                  >
-                    {removingModel === model.name ? "…" : "Remove"}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Available for download */}
-        {modelList && modelList.available_for_download.length > 0 && (
-          <section>
-            <h3 className="text-xs font-medium text-surface-400 uppercase tracking-wide mb-2">
-              Available
-            </h3>
-            <div className="flex flex-col gap-2">
-              {modelList.available_for_download.map((model) => (
-                <div
-                  key={model.name}
+                  key={engine.name}
                   className="bg-surface-800 rounded p-3 border border-surface-700 flex items-start gap-3"
                 >
-                  <span className="text-surface-500 text-base mt-0.5">⬇</span>
+                  <span
+                    className={`text-base mt-0.5 ${engine.installed ? "text-success" : "text-surface-500"}`}
+                  >
+                    {engine.installed ? "✓" : "○"}
+                  </span>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm text-surface-200 font-medium">
-                        {model.name}
+                        {engine.name}
                       </span>
-                      {model.requires_gpu && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-700 text-surface-400">
+                        {engine.voice_type}
+                      </span>
+                      {engine.vram_mb > 0 && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-700 text-surface-400">
                           GPU
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-surface-400">
-                      {model.size_mb >= 1000
-                        ? `${(model.size_mb / 1024).toFixed(1)} GB`
-                        : `${model.size_mb.toFixed(0)} MB`}{" "}
-                      · {model.license}
+                    <div className="text-xs text-surface-400 mt-0.5">
+                      {engine.description}
                     </div>
-                    {model.install_hint && (
-                      <div className="text-xs text-surface-500 font-mono mt-1">
-                        {model.install_hint}
-                      </div>
-                    )}
+                    <div className="text-xs text-surface-500">
+                      {engine.model_size_gb > 0 ? `${engine.model_size_gb} GB · ` : ""}
+                      {engine.license}
+                    </div>
                   </div>
-                  <button
-                    onClick={() => handleDownload(model)}
-                    className="text-xs px-2 py-1 rounded bg-accent/20 text-accent hover:bg-accent/30"
-                  >
-                    Download
-                  </button>
+                  {engine.name !== "piper" && (
+                    engine.installed ? (
+                      <button
+                        onClick={() => handleUninstall(engine.name)}
+                        disabled={uninstallingEngine === engine.name || !!activeInstall}
+                        className="text-xs px-2 py-1 rounded bg-danger/10 text-danger hover:bg-danger/20 disabled:opacity-50 shrink-0"
+                      >
+                        {uninstallingEngine === engine.name ? "…" : "Uninstall"}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleInstall(engine.name)}
+                        disabled={!!activeInstall}
+                        className="text-xs px-2 py-1 rounded bg-accent/20 text-accent hover:bg-accent/30 disabled:opacity-50 shrink-0"
+                      >
+                        Install
+                      </button>
+                    )
+                  )}
                 </div>
               ))}
             </div>
           </section>
         )}
 
-        {modelList && modelList.installed.length === 0 && (
-          <div className="text-center py-4">
-            <p className="text-sm text-surface-400">No models installed yet.</p>
-            <p className="text-xs text-surface-500 mt-1">
-              Download Piper to get started — it runs on CPU with no GPU required.
-            </p>
-          </div>
+        {/* Piper Voice Packs */}
+        {piperInstalled && (
+          <section>
+            <h3 className="text-xs font-medium text-surface-400 uppercase tracking-wide mb-2">
+              Piper Voice Packs
+            </h3>
+
+            {installedVoices.length > 0 && (
+              <div className="flex flex-col gap-2 mb-2">
+                {installedVoices.map((voice) => (
+                  <div
+                    key={voice.id}
+                    className="bg-surface-800 rounded p-3 border border-surface-700 flex items-center gap-3"
+                  >
+                    <span className="text-success text-base">✓</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-surface-200 font-medium truncate">
+                        {voice.id}
+                      </div>
+                      <div className="text-xs text-surface-400">
+                        {voice.language} · {voice.quality} · {voice.size_mb.toFixed(0)} MB
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveVoice(voice.id, voice.size_mb)}
+                      disabled={removingVoice === voice.id}
+                      className="text-xs px-2 py-1 rounded bg-danger/10 text-danger hover:bg-danger/20 disabled:opacity-50 shrink-0"
+                    >
+                      {removingVoice === voice.id ? "…" : "Remove"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {availableVoices.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {availableVoices.map((voice) => (
+                  <div
+                    key={voice.id}
+                    className="bg-surface-800 rounded p-3 border border-surface-700 flex items-start gap-3"
+                  >
+                    <span className="text-surface-500 text-base mt-0.5">⬇</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-surface-200 font-medium truncate">
+                        {voice.id}
+                      </div>
+                      <div className="text-xs text-surface-400">
+                        {voice.language} · {voice.quality} · {voice.size_mb.toFixed(0)} MB
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDownloadVoice(voice.id)}
+                      disabled={activeDownloads.some((d) => d.voiceName === voice.id)}
+                      className="text-xs px-2 py-1 rounded bg-accent/20 text-accent hover:bg-accent/30 disabled:opacity-50 shrink-0"
+                    >
+                      Download
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {installedVoices.length === 0 && availableVoices.length === 0 && !loading && (
+              <p className="text-xs text-surface-500 py-2">
+                No voice packs found. Check your connection and try refreshing.
+              </p>
+            )}
+          </section>
         )}
       </div>
 
@@ -290,14 +400,14 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
         <div className="p-4 border-t border-surface-700 bg-surface-900">
           <button
             onClick={onClose}
-            disabled={!modelList || modelList.installed.length === 0}
+            disabled={!anyEngineReady}
             className="w-full py-2 rounded bg-accent text-surface-950 text-sm font-medium hover:bg-accent-hover disabled:opacity-50"
           >
             Get Started →
           </button>
-          {(!modelList || modelList.installed.length === 0) && (
+          {!anyEngineReady && (
             <p className="text-xs text-surface-500 text-center mt-1">
-              Download at least one model to continue.
+              Install an engine or download a Piper voice to continue.
             </p>
           )}
         </div>

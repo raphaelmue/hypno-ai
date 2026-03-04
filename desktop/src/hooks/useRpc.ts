@@ -65,6 +65,7 @@ import type {
   AIGenerateParams,
   CatalogVoice,
   DownloadProgress,
+  EngineSpec,
   EngineStatus,
   LintResult,
   ModelList,
@@ -187,6 +188,25 @@ export function useRpc() {
 
   const enginesUse = useCallback(
     (engine: string): Promise<{ engine: string }> => rpcCall("engines.use", { engine }),
+    []
+  );
+
+  const enginesList = useCallback(
+    (): Promise<{ engines: EngineSpec[] }> => rpcCall("engines.list", {}),
+    []
+  );
+
+  const enginesInstall = useCallback(
+    (engine: string, onLine: (line: string) => void): Promise<void> =>
+      rpcStream("engines.install", { engine }, (chunk) => {
+        if (chunk.line) onLine(chunk.line as string);
+      }),
+    []
+  );
+
+  const enginesUninstall = useCallback(
+    (engine: string): Promise<{ uninstalled: boolean }> =>
+      rpcCall("engines.uninstall", { engine }),
     []
   );
 
@@ -320,6 +340,9 @@ export function useRpc() {
     voicesAdd,
     enginesActive,
     enginesUse,
+    enginesList,
+    enginesInstall,
+    enginesUninstall,
     generateScript,
     modelsStatus,
     modelsList,

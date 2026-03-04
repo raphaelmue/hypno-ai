@@ -45,14 +45,6 @@ app = typer.Typer(
 console = Console()
 err_console = Console(stderr=True)
 
-# Sub-app for model management
-models_app = typer.Typer(
-    name="models",
-    help="Manage TTS engine voice packs (download, list, remove, info).",
-    no_args_is_help=True,
-)
-app.add_typer(models_app, name="models")
-
 # Sub-app for voice management
 voices_app = typer.Typer(
     name="voices",
@@ -529,238 +521,6 @@ def _build_llm_provider(provider_name: str, cfg: "Config"):
 
 
 # ---------------------------------------------------------------------------
-# models sub-app
-# ---------------------------------------------------------------------------
-
-
-def _all_model_managers(_cfg: Config):
-    """Return one ModelManager per GPU/single-checkpoint TTS engine.
-
-    Piper is intentionally excluded here — its voices are managed through the
-    ``voices`` sub-command (download/remove via PiperVoiceManager).
-    """
-    from .resources.model_manager import (
-        CoquiModelManager,
-        KokoroModelManager,
-        StyleTTSModelManager,
-        F5TTSModelManager,
-        BarkModelManager,
-    )
-
-    return [
-        CoquiModelManager(),
-        KokoroModelManager(),
-        StyleTTSModelManager(),
-        F5TTSModelManager(),
-        BarkModelManager(),
-    ]
-
-
-def _find_model_manager(model_id: str, managers):
-    """Return the manager whose catalog contains *model_id*, or None.
-
-    Also matches bare engine names (e.g. "coqui" → CoquiModelManager).
-    """
-    for mgr in managers:
-        if mgr.engine_name == model_id:
-            return mgr
-    for mgr in managers:
-        try:
-            if model_id in mgr.get_catalog():
-                return mgr
-        except Exception:
-            pass
-    return None
-
-
-@models_app.command("list")
-def models_list(
-    available: bool = typer.Option(False, "--available", help="Show downloadable catalog instead of installed."),
-    engine: Optional[str] = typer.Option(None, "--engine", "-e", help="Filter by engine name."),
-    config_path: Optional[Path] = typer.Option(None, "--config", help="Path to hypnoai.toml."),
-) -> None:
-    """List installed (or available) TTS models across all engines."""
-    cfg = _load_config(config_path)
-    managers = _all_model_managers(cfg)
-    if engine:
-        managers = [m for m in managers if m.engine_name == engine]
-        if not managers:
-            err_console.print(f"[red]Unknown engine:[/red] {engine}")
-            raise typer.Exit(1)
-
-    if available:
-        all_models = []
-        for mgr in managers:
-            force = mgr.engine_name == "piper"
-            if force:
-                console.print("Fetching Piper catalog from HuggingFace…")
-            try:
-                catalog = mgr.get_catalog(force_refresh=force)
-                all_models.extend(catalog.values())
-            except RuntimeError as exc:
-                err_console.print(f"[yellow]Warning:[/yellow] {mgr.engine_name}: {exc}")
-
-        if not all_models:
-            console.print("[yellow]No models available.[/yellow]")
-            return
-
-        tbl = Table(title="Available TTS Models")
-        tbl.add_column("ID", style="cyan", no_wrap=True)
-        tbl.add_column("Engine")
-        tbl.add_column("Language")
-        tbl.add_column("Quality")
-        tbl.add_column("Size (MB)", justify="right")
-        tbl.add_column("License")
-        for m in sorted(all_models, key=lambda x: (x.engine, x.id)):
-            size_str = f"{m.size_mb:.1f}" if m.size_mb > 0 else "auto"
-            tbl.add_row(m.id, m.engine, m.language, m.quality, size_str, m.license)
-        console.print(tbl)
-    else:
-        all_installed = []
-        for mgr in managers:
-            all_installed.extend(mgr.list_installed())
-
-        if not all_installed:
-            console.print("[yellow]No models installed.[/yellow]")
-            console.print(f"Voice directory: {cfg.voices_dir}")
-            console.print("Run 'hypnoai models list --available' to browse downloadable packs.")
-            return
-
-        tbl = Table(title="Installed TTS Models")
-        tbl.add_column("ID", style="cyan", no_wrap=True)
-        tbl.add_column("Engine")
-        tbl.add_column("Language")
-        tbl.add_column("Quality")
-        tbl.add_column("Size (MB)", justify="right")
-        for m in all_installed:
-            size_str = f"{m.size_mb:.1f}" if m.size_mb > 0 else "—"
-            tbl.add_row(m.id, m.engine, m.language, m.quality, size_str)
-        console.print(tbl)
-
-
-@models_app.command("download")
-def models_download(
-    model_id: str = typer.Argument(..., help="Model or voice pack ID, e.g. en_US-amy-medium or 'coqui'."),
-    engine: Optional[str] = typer.Option(None, "--engine", "-e", help="TTS engine (piper, coqui, kokoro, …)."),
-    config_path: Optional[Path] = typer.Option(None, "--config", help="Path to hypnoai.toml."),
-) -> None:
-    """Download a TTS model or Piper voice pack."""
-    cfg = _load_config(config_path)
-    managers = _all_model_managers(cfg)
-
-    if engine:
-        mgr = next((m for m in managers if m.engine_name == engine), None)
-        if mgr is None:
-            err_console.print(f"[red]Unknown engine:[/red] {engine}")
-            raise typer.Exit(1)
-    else:
-        mgr = _find_model_manager(model_id, managers)
-        if mgr is None:
-            err_console.print(f"[red]Unknown model:[/red] {model_id}")
-            console.print("Run 'hypnoai models list --available' to see available models.")
-            raise typer.Exit(1)
-
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[bold]{task.description}"),
-        BarColumn(),
-        DownloadColumn(),
-        TransferSpeedColumn(),
-        TimeRemainingColumn(),
-        console=console,
-    ) as progress:
-        dl_task = progress.add_task(f"Downloading {model_id}…", total=None)
-
-        def _progress(downloaded: int, total: int) -> None:
-            progress.update(
-                dl_task,
-                completed=downloaded,
-                total=total if total > 0 else None,
-            )
-
-        try:
-            mgr.download(model_id, progress=_progress)
-        except NotImplementedError as exc:
-            # Single-checkpoint engines manage their own download — show the hint.
-            console.print(f"[yellow]Note:[/yellow] {exc}")
-            return
-        except (ValueError, RuntimeError) as exc:
-            err_console.print(f"[red]Error:[/red] {exc}")
-            raise typer.Exit(1)
-
-    console.print(f"[green]Done![/green] {model_id} installed.")
-
-
-@models_app.command("remove")
-def models_remove(
-    model_id: str = typer.Argument(..., help="Model or voice pack ID to remove."),
-    engine: Optional[str] = typer.Option(None, "--engine", "-e", help="TTS engine (piper, coqui, kokoro, …)."),
-    config_path: Optional[Path] = typer.Option(None, "--config", help="Path to hypnoai.toml."),
-) -> None:
-    """Remove an installed model or voice pack."""
-    cfg = _load_config(config_path)
-    managers = _all_model_managers(cfg)
-
-    if engine:
-        mgr = next((m for m in managers if m.engine_name == engine), None)
-        if mgr is None:
-            err_console.print(f"[red]Unknown engine:[/red] {engine}")
-            raise typer.Exit(1)
-        candidates = [mgr]
-    else:
-        candidates = managers
-
-    for mgr in candidates:
-        try:
-            removed = mgr.remove(model_id)
-        except NotImplementedError as exc:
-            if engine:
-                # User explicitly targeted this engine — surface the hint.
-                console.print(f"[yellow]Note:[/yellow] {exc}")
-                return
-            # Auto-detect: this engine doesn't support removal; try the next one.
-            continue
-        if removed:
-            console.print(f"[green]Removed[/green] {model_id}")
-            return
-
-    err_console.print(f"[yellow]Not installed:[/yellow] {model_id}")
-    raise typer.Exit(1)
-
-
-@models_app.command("info")
-def models_info(
-    model_id: str = typer.Argument(..., help="Model or voice pack ID."),
-    config_path: Optional[Path] = typer.Option(None, "--config", help="Path to hypnoai.toml."),
-) -> None:
-    """Show information about a TTS model."""
-    cfg = _load_config(config_path)
-    managers = _all_model_managers(cfg)
-
-    info = None
-    for mgr in managers:
-        try:
-            info = mgr.info(model_id)
-        except Exception:
-            pass
-        if info is not None:
-            break
-
-    if info is None:
-        err_console.print(f"[red]Not found:[/red] {model_id}")
-        raise typer.Exit(1)
-
-    console.print(f"\n[bold]{info.id}[/bold]")
-    console.print(f"  Engine:    {info.engine}")
-    console.print(f"  Language:  {info.language}")
-    console.print(f"  Quality:   {info.quality}")
-    size_str = f"{info.size_mb:.1f} MB" if info.size_mb > 0 else "auto (managed by engine)"
-    console.print(f"  Size:      {size_str}")
-    console.print(f"  License:   {info.license}")
-    console.print(f"  Installed: {'yes' if info.installed else 'no'}")
-
-
-# ---------------------------------------------------------------------------
 # voices sub-app
 # ---------------------------------------------------------------------------
 
@@ -972,81 +732,107 @@ def voices_remove(
 # engines sub-app
 # ---------------------------------------------------------------------------
 
-_VALID_ENGINES = ["piper", "coqui", "kokoro", "styletts2", "f5tts", "bark"]
-
-_ENGINE_CAPABILITIES = [
-    {
-        "name": "piper",
-        "gpu": False,
-        "vram": 0,
-        "languages": "installed voices",
-        "cloning": False,
-        "emotions": "",
-    },
-    {
-        "name": "coqui",
-        "gpu": True,
-        "vram": 4096,
-        "languages": "multilingual",
-        "cloning": True,
-        "emotions": "",
-    },
-    {
-        "name": "kokoro",
-        "gpu": True,
-        "vram": 2048,
-        "languages": "en-us,en-gb,fr-fr,de-de,ja,ko,zh",
-        "cloning": False,
-        "emotions": "",
-    },
-    {
-        "name": "styletts2",
-        "gpu": True,
-        "vram": 3072,
-        "languages": "en",
-        "cloning": True,
-        "emotions": "neutral,happy,sad,angry,fearful,disgusted,surprised",
-    },
-    {
-        "name": "f5tts",
-        "gpu": True,
-        "vram": 4096,
-        "languages": "en,zh",
-        "cloning": True,
-        "emotions": "",
-    },
-    {
-        "name": "bark",
-        "gpu": True,
-        "vram": 6144,
-        "languages": "en,de,fr,es,it,ja,ko,pl,pt,ru,tr,zh",
-        "cloning": False,
-        "emotions": "neutral",
-    },
-]
-
 
 @engines_app.command("list")
 def engines_list() -> None:
-    """List all supported TTS engines and their capabilities."""
-    tbl = Table(title="Supported TTS Engines")
+    """List all supported TTS engines, their capabilities, and install status."""
+    from .resources.engine_manager import ENGINES, is_installed
+
+    tbl = Table(title="TTS Engines")
     tbl.add_column("Engine", style="cyan", no_wrap=True)
-    tbl.add_column("GPU", justify="center")
+    tbl.add_column("Installed", justify="center")
+    tbl.add_column("Voice Type")
     tbl.add_column("VRAM (MB)", justify="right")
+    tbl.add_column("Model (GB)", justify="right")
     tbl.add_column("Languages")
     tbl.add_column("Cloning", justify="center")
-    tbl.add_column("Emotions")
+    tbl.add_column("License")
 
-    for eng in _ENGINE_CAPABILITIES:
+    for spec in ENGINES.values():
+        installed = is_installed(spec.name)
         tbl.add_row(
-            eng["name"],
-            "yes" if eng["gpu"] else "no",
-            str(eng["vram"]) if eng["vram"] else "—",
-            eng["languages"],
-            "yes" if eng["cloning"] else "no",
-            eng["emotions"] or "—",
+            spec.name,
+            "[green]yes[/green]" if installed else "no",
+            spec.voice_type,
+            str(spec.vram_mb) if spec.vram_mb else "—",
+            f"{spec.model_size_gb:.1f}" if spec.model_size_gb else "—",
+            ", ".join(spec.languages),
+            "yes" if spec.supports_cloning else "no",
+            spec.license,
         )
     console.print(tbl)
+
+
+@engines_app.command("install")
+def engines_install(
+    engine: str = typer.Argument(..., help="Engine to install (e.g. kokoro, bark, coqui)."),
+) -> None:
+    """Install a TTS engine's Python package via pip."""
+    from .resources.engine_manager import ENGINES, install, is_installed
+
+    if engine not in ENGINES:
+        err_console.print(
+            f"[red]Unknown engine:[/red] {engine!r}. "
+            f"Valid: {', '.join(ENGINES)}"
+        )
+        raise typer.Exit(1)
+
+    if is_installed(engine):
+        console.print(f"[yellow]{engine}[/yellow] is already installed.")
+        return
+
+    spec = ENGINES[engine]
+    console.print(
+        f"Installing [cyan]{engine}[/cyan] "
+        f"([dim]{spec.pip_package}[/dim], ~{spec.model_size_gb:.1f} GB model on first use)…"
+    )
+    try:
+        install(engine)
+    except EnvironmentError as exc:
+        err_console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
+    except RuntimeError as exc:
+        err_console.print(f"[red]Installation failed:[/red] {exc}")
+        raise typer.Exit(1)
+
+    console.print(f"[green]Installed[/green] {engine}.")
+    if spec.model_size_gb > 0:
+        console.print(
+            f"[dim]Note: the ~{spec.model_size_gb:.1f} GB model weights will be "
+            "downloaded automatically on first render.[/dim]"
+        )
+
+
+@engines_app.command("uninstall")
+def engines_uninstall(
+    engine: str = typer.Argument(..., help="Engine to uninstall."),
+) -> None:
+    """Uninstall a TTS engine's Python package via pip."""
+    from .resources.engine_manager import ENGINES, uninstall, is_installed
+
+    if engine not in ENGINES:
+        err_console.print(
+            f"[red]Unknown engine:[/red] {engine!r}. "
+            f"Valid: {', '.join(ENGINES)}"
+        )
+        raise typer.Exit(1)
+
+    if not is_installed(engine):
+        console.print(f"[yellow]{engine}[/yellow] is not installed.")
+        return
+
+    spec = ENGINES[engine]
+    console.print(f"Uninstalling [cyan]{engine}[/cyan] ([dim]{spec.pip_package}[/dim])…")
+    try:
+        uninstall(engine)
+    except EnvironmentError as exc:
+        err_console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
+    except RuntimeError as exc:
+        err_console.print(f"[red]Uninstall failed:[/red] {exc}")
+        raise typer.Exit(1)
+
+    console.print(f"[green]Uninstalled[/green] {engine}.")
 
 
 @engines_app.command("active")
@@ -1060,16 +846,16 @@ def engines_active(
 
 @engines_app.command("use")
 def engines_use(
-    engine: str = typer.Argument(
-        ..., help=f"Engine to activate ({', '.join(_VALID_ENGINES)})."
-    ),
+    engine: str = typer.Argument(..., help="Engine to activate."),
     config_path: Optional[Path] = typer.Option(None, "--config", help="Path to hypnoai.toml."),
 ) -> None:
     """Set the active TTS engine (persists to runtime state file)."""
-    if engine not in _VALID_ENGINES:
+    from .resources.engine_manager import ENGINES
+
+    if engine not in ENGINES:
         err_console.print(
             f"[red]Unknown engine:[/red] {engine!r}. "
-            f"Valid: {', '.join(_VALID_ENGINES)}"
+            f"Valid: {', '.join(ENGINES)}"
         )
         raise typer.Exit(1)
     Config.save_state("active_engine", engine)

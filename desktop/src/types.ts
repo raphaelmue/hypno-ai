@@ -46,6 +46,20 @@ export interface EngineInfo {
   install_hint?: string;
 }
 
+export interface EngineSpec {
+  name: string;
+  installed: boolean;
+  voice_type: VoiceType;
+  vram_mb: number;
+  model_size_gb: number;
+  languages: string[];
+  supports_cloning: boolean;
+  supports_emotions: boolean;
+  emotions: string[];
+  license: string;
+  description: string;
+}
+
 // ---------------------------------------------------------------------------
 // Script / lint types
 // ---------------------------------------------------------------------------

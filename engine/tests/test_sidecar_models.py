@@ -55,7 +55,7 @@ def test_models_list_returns_structure(session):
     )
 
     with patch("hypnoai.sidecar.handlers.models.PiperModelManager") as mock_cls, \
-         patch("hypnoai.sidecar.handlers.models._engine_installed", return_value=False):
+         patch("hypnoai.sidecar.handlers.models.is_installed", return_value=False):
         mock_mgr = MagicMock()
         mock_mgr.list_installed.return_value = [installed_voice]
         mock_cls.return_value = mock_mgr
@@ -71,7 +71,7 @@ def test_models_list_returns_structure(session):
 
 def test_models_list_available_for_download(session):
     with patch("hypnoai.sidecar.handlers.models.PiperModelManager") as mock_cls, \
-         patch("hypnoai.sidecar.handlers.models._engine_installed", return_value=False):
+         patch("hypnoai.sidecar.handlers.models.is_installed", return_value=False):
         mock_mgr = MagicMock()
         mock_mgr.list_installed.return_value = []
         mock_cls.return_value = mock_mgr
