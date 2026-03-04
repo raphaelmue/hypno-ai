@@ -8,7 +8,7 @@ import numpy as np
 import soundfile as sf
 
 from .base import VoiceInfo
-from ._torch_compat import register_safe_globals
+from ._torch_compat import patch_torch_load
 
 try:
     from bark import generate_audio, preload_models  # type: ignore[import-untyped]
@@ -140,7 +140,7 @@ class BarkEngine:
 
     def _ensure_loaded(self) -> None:
         if not self._loaded:
-            register_safe_globals()
+            patch_torch_load()
             if not self.use_gpu:
                 os.environ["CUDA_VISIBLE_DEVICES"] = ""
             preload_models(
