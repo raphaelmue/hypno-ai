@@ -52,9 +52,13 @@ class TestKokoroEngineProtocol:
         engine, _, _ = patched_engine
         assert engine.max_workers == 2
 
-    def test_requires_gpu(self, patched_engine):
+    def test_requires_gpu_reflects_use_gpu(self, patched_engine, tmp_path, monkeypatch):
         engine, _, _ = patched_engine
-        assert engine.requires_gpu is True
+        assert engine.requires_gpu is False  # fixture uses use_gpu=False
+        mock_pipeline_cls = _make_pipeline_mock()
+        monkeypatch.setattr(_ke, "KPipeline", mock_pipeline_cls)
+        gpu_engine = KokoroEngine(voices_dir=tmp_path, use_gpu=True)
+        assert gpu_engine.requires_gpu is True
 
     def test_supported_languages(self, patched_engine):
         engine, _, _ = patched_engine

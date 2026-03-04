@@ -62,7 +62,7 @@ class F5TTSEngine:
 
     @property
     def requires_gpu(self) -> bool:
-        return True
+        return self.use_gpu
 
     @property
     def supported_languages(self) -> list[str]:

@@ -53,9 +53,12 @@ class TestBarkEngineProtocol:
         engine, _, _ = patched_engine
         assert engine.max_workers == 1
 
-    def test_requires_gpu(self, patched_engine):
+    def test_requires_gpu_reflects_use_gpu(self, patched_engine, tmp_path, monkeypatch):
         engine, _, _ = patched_engine
-        assert engine.requires_gpu is True
+        assert engine.requires_gpu is False  # fixture uses use_gpu=False
+        _patch_bark(monkeypatch)
+        gpu_engine = BarkEngine(voices_dir=tmp_path, use_gpu=True)
+        assert gpu_engine.requires_gpu is True
 
     def test_supports_prosody_reference_false(self, patched_engine):
         engine, _, _ = patched_engine

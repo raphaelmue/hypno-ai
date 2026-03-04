@@ -71,7 +71,7 @@ class StyleTTSEngine:
 
     @property
     def requires_gpu(self) -> bool:
-        return True
+        return self.use_gpu
 
     @property
     def supported_languages(self) -> list[str]:

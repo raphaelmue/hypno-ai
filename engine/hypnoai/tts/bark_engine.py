@@ -76,7 +76,7 @@ class BarkEngine:
 
     @property
     def requires_gpu(self) -> bool:
-        return True
+        return self.use_gpu
 
     @property
     def supported_languages(self) -> list[str]:
@@ -140,8 +140,13 @@ class BarkEngine:
     def _ensure_loaded(self) -> None:
         if not self._loaded:
             if not self.use_gpu:
-                os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
-            preload_models()
+                os.environ["CUDA_VISIBLE_DEVICES"] = ""
+            preload_models(
+                text_use_gpu=self.use_gpu,
+                coarse_use_gpu=self.use_gpu,
+                fine_use_gpu=self.use_gpu,
+                codec_use_gpu=self.use_gpu,
+            )
             self._loaded = True
 
 

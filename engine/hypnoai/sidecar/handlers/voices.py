@@ -44,11 +44,8 @@ _ALL_ENGINES = ["piper", "coqui", "kokoro", "styletts2", "f5tts", "bark"]
 
 
 def _pkg_importable(pkg: str) -> bool:
-    try:
-        __import__(pkg)
-        return True
-    except ImportError:
-        return False
+    import importlib.util
+    return importlib.util.find_spec(pkg) is not None
 
 
 def _engine_available(engine_name: str, cfg: Config) -> bool:
