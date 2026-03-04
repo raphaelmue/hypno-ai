@@ -203,7 +203,7 @@ def install(name: str, line_callback: LineCallback | None = None) -> None:
     spec = ENGINES[name]  # propagate KeyError for unknown engines
     _check_not_frozen()
     cmd = [
-        sys.executable, "-m", "pip", "install",
+        sys.executable, "-u", "-m", "pip", "install",
         spec.pip_package, "--no-warn-script-location",
     ]
     _run_pip(cmd, line_callback)
@@ -223,7 +223,7 @@ def uninstall(name: str, line_callback: LineCallback | None = None) -> None:
     """
     spec = ENGINES[name]  # propagate KeyError for unknown engines
     _check_not_frozen()
-    cmd = [sys.executable, "-m", "pip", "uninstall", spec.pip_package, "-y"]
+    cmd = [sys.executable, "-u", "-m", "pip", "uninstall", spec.pip_package, "-y"]
     _run_pip(cmd, line_callback)
 
 

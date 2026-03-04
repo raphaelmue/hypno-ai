@@ -29,25 +29,41 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
   const [engines, setEngines] = useState<EngineSpec[]>([]);
   const [catalogVoices, setCatalogVoices] = useState<CatalogVoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [catalogLoading, setCatalogLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const [activeInstall, setActiveInstall] = useState<ActiveInstall | null>(null);
   const [uninstallingEngine, setUninstallingEngine] = useState<string | null>(null);
   const [activeDownloads, setActiveDownloads] = useState<ActiveDownload[]>([]);
   const [removingVoice, setRemovingVoice] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Fetch voice catalog separately — it requires a HuggingFace network call
+  // which can block the sidecar for several seconds. We don't want that to
+  // delay the engine list or prevent the Install button from working.
+  const fetchCatalog = useCallback(async () => {
+    setCatalogLoading(true);
+    setCatalogError(null);
+    try {
+      const result = await rpc.voicesCatalog();
+      setCatalogVoices(result.voices);
+    } catch (e) {
+      setCatalogError(`Failed to load voice catalog: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setCatalogLoading(false);
+    }
+  }, [rpc]);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [statusResult, enginesResult, catalogResult] = await Promise.all([
+      const [statusResult, enginesResult] = await Promise.all([
         rpc.modelsStatus(),
         rpc.enginesList(),
-        rpc.voicesCatalog(),
       ]);
       setStatus(statusResult);
       setEngines(enginesResult.engines);
-      setCatalogVoices(catalogResult.voices);
     } catch (e) {
       setError(`Failed to load: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -56,8 +72,8 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
   }, [rpc]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchData().then(() => fetchCatalog());
+  }, [fetchData, fetchCatalog]);
 
   // Poll download progress for active voice-pack downloads
   useEffect(() => {
@@ -96,7 +112,7 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
         );
       });
       setActiveInstall(null);
-      fetchData();
+      fetchData().then(() => fetchCatalog());
     } catch (e) {
       setActiveInstall((prev) =>
         prev ? { ...prev, error: String(e) } : null
@@ -109,7 +125,7 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
     setUninstallingEngine(engineName);
     try {
       await rpc.enginesUninstall(engineName);
-      fetchData();
+      fetchData().then(() => fetchCatalog());
     } catch (e) {
       console.error("Uninstall failed:", e);
     } finally {
@@ -138,7 +154,7 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
     setRemovingVoice(voiceId);
     try {
       await rpc.modelsRemove(voiceId);
-      fetchData();
+      fetchData().then(() => fetchCatalog());
     } catch (e) {
       console.error("Remove failed:", e);
     } finally {
@@ -386,7 +402,13 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
               </div>
             )}
 
-            {installedVoices.length === 0 && availableVoices.length === 0 && !loading && (
+            {catalogLoading && (
+              <p className="text-xs text-surface-400 py-2 animate-pulse">Loading catalog…</p>
+            )}
+            {catalogError && (
+              <p className="text-xs text-danger py-2">{catalogError}</p>
+            )}
+            {installedVoices.length === 0 && availableVoices.length === 0 && !catalogLoading && !catalogError && (
               <p className="text-xs text-surface-500 py-2">
                 No voice packs found. Check your connection and try refreshing.
               </p>
