@@ -7,6 +7,7 @@ import numpy as np
 import soundfile as sf
 
 from .base import VoiceInfo
+from ._torch_compat import register_safe_globals
 
 try:
     from styletts2 import tts as _stts2  # type: ignore[import-untyped]
@@ -150,6 +151,7 @@ class StyleTTSEngine:
 
     def _ensure_loaded(self) -> None:
         if self._model is None:
+            register_safe_globals()
             self._model = _stts2.StyleTTS2()
 
     def _resolve_voice(self, voice: str) -> Path:

@@ -4,6 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .base import VoiceInfo
+from ._torch_compat import register_safe_globals
 
 try:
     from TTS.api import TTS as _CoquiTTS  # type: ignore[import-untyped]
@@ -140,6 +141,7 @@ class CoquiEngine:
 
     def _ensure_loaded(self) -> None:
         if self._tts is None:
+            register_safe_globals()
             self._tts = _CoquiTTS(self.model_name, gpu=self.use_gpu)
 
     def _resolve_voice(self, voice: str, prosody_ref: Path | None) -> Path:

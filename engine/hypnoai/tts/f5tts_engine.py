@@ -7,6 +7,7 @@ import numpy as np
 import soundfile as sf
 
 from .base import VoiceInfo
+from ._torch_compat import register_safe_globals
 
 try:
     from f5_tts.api import F5TTS as _F5TTS  # type: ignore[import-untyped]
@@ -136,6 +137,7 @@ class F5TTSEngine:
 
     def _ensure_loaded(self) -> None:
         if self._model is None:
+            register_safe_globals()
             device = "cuda" if self.use_gpu else "cpu"
             self._model = _F5TTS(model_type="F5-TTS", device=device)
 
