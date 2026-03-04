@@ -83,14 +83,16 @@ def _run_render_job(job: RenderJob, params: dict, cfg: Config) -> None:
         engine_sr = getattr(tts_engine, "sample_rate", cfg.sample_rate)
         pipeline = RenderPipeline(tts_engine, engine_sr, cache, max_workers)
 
-        # Wrap pipeline.render to track progress
-        # We do this by hooking into the job object inside a sequential subclass
+        def _on_progress(completed: int, _total: int) -> None:
+            job.current_paragraph = completed
+
         render_job = pipeline.render(
             blocks=blocks,
             output_dir=chunks_dir,
             initial_voice=voice,
             initial_speed=speed,
             job_id=job.job_id,
+            on_progress=_on_progress,
         )
 
         job.chunk_paths = [str(p) for p in render_job.chunk_paths]

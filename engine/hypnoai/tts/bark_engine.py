@@ -72,6 +72,10 @@ class BarkEngine:
         return 6144
 
     @property
+    def sample_rate(self) -> int:
+        return _BARK_SAMPLE_RATE
+
+    @property
     def max_workers(self) -> int:
         return 1
 
