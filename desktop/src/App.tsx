@@ -53,6 +53,7 @@ export default function App() {
   const rpc = useRpc();
 
   // View state
+  const [isLoading, setIsLoading] = useState(true);
   const [showModelManager, setShowModelManager] = useState(false);
   const [isFirstLaunch, setIsFirstLaunch] = useState(false);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
@@ -143,32 +144,31 @@ export default function App() {
 
   useEffect(() => {
     const init = async () => {
-      // Load voices/model config (best-effort)
-      try {
-        const [voiceResult, status, activeEng] = await Promise.all([
-          rpc.listVoices("all"),
-          rpc.modelsStatus(),
-          rpc.enginesActive(),
-        ]);
-        setVoices(voiceResult.voices);
-        setModelStatus(status);
-        setRenderSettings((prev) => ({ ...prev, engine: activeEng.engine, voice: "" }));
-        if (voiceResult.voices.length === 0) {
-          setIsFirstLaunch(true);
-          setShowModelManager(true);
-        }
-      } catch {
-        // browser dev mode or sidecar not running
-      }
+      // Fire voices, engines, and sessions in parallel — each handles its own failure.
+      // models.status is intentionally excluded here because it imports torch, which can
+      // block the sidecar's sequential request queue for several seconds. It runs in the
+      // background after the UI is shown.
+      await Promise.allSettled([
+        rpc.listVoices("all").then((r) => {
+          setVoices(r.voices);
+          if (r.voices.length === 0) {
+            setIsFirstLaunch(true);
+            setShowModelManager(true);
+          }
+        }),
+        rpc.enginesActive().then((r) => {
+          setRenderSettings((prev) => ({ ...prev, engine: r.engine, voice: "" }));
+        }),
+        rpc.sessionsList().then((r) => {
+          setSessions(r.sessions);
+          if (r.sessions_dir) setSessionsDir(r.sessions_dir);
+        }),
+      ]);
 
-      // Load sessions independently so a failure above doesn't prevent them loading
-      try {
-        const sessionsResult = await rpc.sessionsList();
-        setSessions(sessionsResult.sessions);
-        if (sessionsResult.sessions_dir) setSessionsDir(sessionsResult.sessions_dir);
-      } catch {
-        // browser dev mode or sidecar not running
-      }
+      setIsLoading(false);
+
+      // Load model status in the background — does not block the UI from appearing
+      rpc.modelsStatus().then(setModelStatus).catch(() => {});
     };
     init();
   }, []);
@@ -480,6 +480,17 @@ export default function App() {
   // ---------------------------------------------------------------------------
 
   const engines = ["piper", "coqui", "kokoro", "styletts2", "f5tts", "bark"];
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-surface-950 text-surface-400">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-surface-700 border-t-accent animate-spin" />
+          <span className="text-sm">Starting HypnoAI…</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-surface-950 text-surface-100 overflow-hidden">

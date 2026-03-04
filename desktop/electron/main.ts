@@ -79,6 +79,13 @@ function startSidecar(): void {
   child.on('exit', (code) => {
     console.log('[sidecar] exited with code:', code);
     sidecar.process = null;
+    // Unblock any IPC calls waiting for the ready signal (sidecar died before it was ready)
+    if (!sidecar.ready) {
+      sidecar.ready = true;
+      const pending = sidecar.pendingReady.splice(0);
+      pending.forEach(fn => fn());
+    }
+    // Reject any in-flight RPC calls
     while (sidecar.lineQueue.length) {
       sidecar.lineQueue.shift()!(JSON.stringify({ error: { code: -32000, message: 'Sidecar exited' } }));
     }
