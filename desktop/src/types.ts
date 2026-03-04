@@ -173,6 +173,7 @@ export interface RenderSettings {
   speed: number;
   pitch: number;
   emotion: string;
+  use_gpu: boolean;
 }
 
 export interface SessionVariables {

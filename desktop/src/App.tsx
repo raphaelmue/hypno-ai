@@ -40,6 +40,7 @@ const DEFAULT_RENDER_SETTINGS: RenderSettings = {
   speed: 0.85,
   pitch: 0,
   emotion: "",
+  use_gpu: true,
 };
 
 const POLL_INTERVAL_MS = 1000;
@@ -374,6 +375,7 @@ export default function App() {
           voice: renderSettings.voice,
           engine: renderSettings.engine,
           speed: renderSettings.speed,
+          use_gpu: renderSettings.use_gpu,
         }
       );
       setActiveJobId(job_id);

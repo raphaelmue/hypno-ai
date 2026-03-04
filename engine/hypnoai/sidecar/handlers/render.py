@@ -61,6 +61,8 @@ def _run_render_job(job: RenderJob, params: dict, cfg: Config) -> None:
         voice: str = params.get("voice", cfg.default_voice)
         engine_name: str = params.get("engine", cfg.default_engine)
         speed: float = float(params.get("speed", cfg.default_speed))
+        if "use_gpu" in params:
+            cfg.use_gpu = bool(params["use_gpu"])
 
         source = script_path.read_text(encoding="utf-8")
         source = inject_variables(source, variables)

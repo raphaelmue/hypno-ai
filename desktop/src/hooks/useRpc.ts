@@ -101,6 +101,7 @@ export function useRpc() {
         voice?: string;
         engine?: string;
         speed?: number;
+        use_gpu?: boolean;
       }
     ): Promise<{ job_id: string }> => {
       const { scriptContent, scriptPath, ...rest } = options;

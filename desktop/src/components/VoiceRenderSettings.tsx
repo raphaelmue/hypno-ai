@@ -219,6 +219,27 @@ export function VoiceRenderSettings({
         </select>
       </div>
 
+      {/* GPU toggle — only for GPU-capable engines */}
+      {settings.engine !== "piper" && (
+        <div className="flex items-center justify-between">
+          <label className="text-xs text-surface-400">Use GPU</label>
+          <button
+            role="switch"
+            aria-checked={settings.use_gpu}
+            onClick={() => set({ use_gpu: !settings.use_gpu })}
+            className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${
+              settings.use_gpu ? "bg-accent" : "bg-surface-600"
+            }`}
+          >
+            <span
+              className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                settings.use_gpu ? "translate-x-4" : "translate-x-0.5"
+              }`}
+            />
+          </button>
+        </div>
+      )}
+
       {/* Speed slider */}
       <SliderField
         label="Speed"
