@@ -10,6 +10,7 @@ const SETTINGS: RenderSettings = {
   speed: 0.85,
   pitch: 0,
   emotion: "",
+  use_gpu: false,
 };
 
 const VOICES: VoiceInfo[] = [
