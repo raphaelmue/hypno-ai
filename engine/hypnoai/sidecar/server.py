@@ -67,6 +67,10 @@ class RPCServer:
         """Write a single JSON line to stdout."""
         print(json.dumps(obj), file=self._stdout, flush=True)
 
+    def ready(self) -> None:
+        """Emit a ready notification so the host knows the server is accepting requests."""
+        self.emit({"jsonrpc": "2.0", "method": "sidecar.ready"})
+
     def run(self) -> None:
         """Main loop: read requests from stdin, dispatch, write responses."""
         for raw in self._stdin:

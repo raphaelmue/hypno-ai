@@ -12,8 +12,8 @@ The output audio defaults to ``{session-id}/output.wav``.
 from __future__ import annotations
 
 import json
+import re
 import shutil
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -24,6 +24,26 @@ from ...config import Config
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _slugify(name: str) -> str:
+    """Convert a session name to a filesystem-safe slug."""
+    slug = name.lower()
+    slug = re.sub(r"[^\w\s-]", "", slug)
+    slug = re.sub(r"[\s_]+", "-", slug)
+    slug = re.sub(r"-+", "-", slug)
+    slug = slug.strip("-")
+    return slug or "session"
+
+
+def _unique_slug(sessions_dir: Path, base_slug: str) -> str:
+    """Return a slug that does not conflict with existing session directories."""
+    if not (sessions_dir / base_slug).exists():
+        return base_slug
+    counter = 2
+    while (sessions_dir / f"{base_slug}-{counter}").exists():
+        counter += 1
+    return f"{base_slug}-{counter}"
+
 
 def _get_sessions_dir() -> Path:
     sessions_dir_str = Config.load_state("sessions_dir")
@@ -85,8 +105,8 @@ def handle_sessions_list(_session: Any, _params: dict[str, Any]) -> dict:
 
 def handle_sessions_create(_session: Any, params: dict[str, Any]) -> dict:
     sessions_dir = _get_sessions_dir()
-    session_id = str(uuid.uuid4())[:8]
     name = params.get("name") or "New Session"
+    session_id = _unique_slug(sessions_dir, _slugify(name))
     session_dir = sessions_dir / session_id
     session_dir.mkdir(parents=True, exist_ok=True)
 

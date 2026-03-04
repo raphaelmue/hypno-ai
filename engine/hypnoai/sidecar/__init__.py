@@ -83,6 +83,7 @@ def main() -> None:
     server.register("sessions.dir.get", handle_sessions_dir_get)
     server.register("sessions.dir.set", handle_sessions_dir_set)
 
+    server.ready()
     server.run()
 
 

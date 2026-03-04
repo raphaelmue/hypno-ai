@@ -1,15 +1,72 @@
 /**
  * Application sidebar — session manager, variables panel, and model quick-status.
  */
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { LintResult, ModelStatus, SessionInfo, SessionVariables } from "../types";
 import { VariablesPanel } from "./VariablesPanel";
+
+function NewSessionDialog({
+  onConfirm,
+  onCancel,
+}: {
+  onConfirm: (name: string) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState("New Session");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.select();
+  }, []);
+
+  const commit = () => {
+    const trimmed = name.trim();
+    if (trimmed) onConfirm(trimmed);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") commit();
+    if (e.key === "Escape") onCancel();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-surface-800 border border-surface-600 rounded-lg shadow-xl p-4 w-72 flex flex-col gap-3">
+        <div className="text-sm font-medium text-surface-200">New session</div>
+        <input
+          ref={inputRef}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="w-full text-sm bg-surface-900 border border-surface-600 rounded px-2 py-1.5 text-surface-100 outline-none focus:border-accent"
+          placeholder="Session name"
+          autoFocus
+        />
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={onCancel}
+            className="text-xs text-surface-400 hover:text-surface-200 px-3 py-1 rounded hover:bg-surface-700"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={commit}
+            disabled={!name.trim()}
+            className="text-xs bg-accent text-white px-3 py-1 rounded hover:bg-accent-hover disabled:opacity-40"
+          >
+            Create
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   sessions: SessionInfo[];
   activeSessionId: string | null;
   onSelectSession: (id: string) => void;
-  onNewSession: () => void;
+  onNewSession: (name: string) => void;
   onDeleteSession: (id: string) => void;
   onRenameSession: (id: string, name: string) => void;
   sessionsDir: string;
@@ -174,15 +231,26 @@ export function Sidebar({
   onOpenModelManager,
   installedModelCount,
 }: Props) {
+  const [showNewDialog, setShowNewDialog] = useState(false);
+
   return (
     <div className="flex flex-col h-full bg-surface-900 border-r border-surface-700 w-48 shrink-0">
+      {showNewDialog && (
+        <NewSessionDialog
+          onConfirm={(name) => {
+            setShowNewDialog(false);
+            onNewSession(name);
+          }}
+          onCancel={() => setShowNewDialog(false)}
+        />
+      )}
       {/* Session manager header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-surface-700">
         <span className="text-xs font-medium text-surface-400 uppercase tracking-wide">
           Sessions
         </span>
         <button
-          onClick={onNewSession}
+          onClick={() => setShowNewDialog(true)}
           className="text-surface-400 hover:text-accent text-lg leading-none"
           title="New session"
         >

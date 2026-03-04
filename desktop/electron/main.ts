@@ -14,11 +14,13 @@ protocol.registerSchemesAsPrivileged([
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Sidecar state (mirrors Rust SidecarState)
+// Sidecar state
 const sidecar = {
   process: null as ChildProcess | null,
   requestId: 0,
   lineQueue: [] as Array<(line: string) => void>,
+  ready: false,
+  pendingReady: [] as Array<() => void>,
 };
 
 function findVenvPython(): string {
@@ -59,6 +61,16 @@ function startSidecar(): void {
       console.warn('[sidecar] Unexpected line:', line);
       return;
     }
+    // Check for the ready notification (unsolicited, no id)
+    try {
+      const parsed = JSON.parse(line) as { method?: string };
+      if (parsed.method === 'sidecar.ready') {
+        sidecar.ready = true;
+        const pending = sidecar.pendingReady.splice(0);
+        pending.forEach(fn => fn());
+        return;
+      }
+    } catch { /* fall through to normal response handling */ }
     const resolver = sidecar.lineQueue.shift();
     if (resolver) resolver(line);
     else console.warn('[sidecar] Unexpected line:', line);
@@ -79,9 +91,15 @@ function writeRequest(method: string, params: unknown, id: number): void {
   sidecar.process!.stdin!.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n');
 }
 
+function waitForReady(): Promise<void> {
+  if (sidecar.ready) return Promise.resolve();
+  return new Promise(resolve => { sidecar.pendingReady.push(resolve); });
+}
+
 // Single request → single response
 ipcMain.handle('rpc-call', async (_e, method: string, params: unknown) => {
   if (!sidecar.process) throw new Error('Sidecar not running');
+  await waitForReady();
   const id = nextId();
   writeRequest(method, params, id);
   const line = await new Promise<string>(resolve => { sidecar.lineQueue.push(resolve); });
@@ -93,6 +111,7 @@ ipcMain.handle('rpc-call', async (_e, method: string, params: unknown) => {
 // Streaming request → chunks via webContents.send until done=true
 ipcMain.handle('rpc-stream', async (event, method: string, params: unknown, streamId: string) => {
   if (!sidecar.process) throw new Error('Sidecar not running');
+  await waitForReady();
   const id = nextId();
   writeRequest(method, params, id);
   while (true) {

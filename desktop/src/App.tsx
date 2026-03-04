@@ -143,26 +143,31 @@ export default function App() {
 
   useEffect(() => {
     const init = async () => {
+      // Load voices/model config (best-effort)
       try {
-        const [voiceResult, status, activeEng, sessionsResult] = await Promise.all([
+        const [voiceResult, status, activeEng] = await Promise.all([
           rpc.listVoices("all"),
           rpc.modelsStatus(),
           rpc.enginesActive(),
-          rpc.sessionsList(),
         ]);
         setVoices(voiceResult.voices);
         setModelStatus(status);
         setRenderSettings((prev) => ({ ...prev, engine: activeEng.engine, voice: "" }));
-        setSessions(sessionsResult.sessions);
-        if (sessionsResult.sessions_dir) setSessionsDir(sessionsResult.sessions_dir);
-
-        // First launch: no voices installed
         if (voiceResult.voices.length === 0) {
           setIsFirstLaunch(true);
           setShowModelManager(true);
         }
       } catch {
-        // Sidecar not running in browser dev mode — show placeholder
+        // browser dev mode or sidecar not running
+      }
+
+      // Load sessions independently so a failure above doesn't prevent them loading
+      try {
+        const sessionsResult = await rpc.sessionsList();
+        setSessions(sessionsResult.sessions);
+        if (sessionsResult.sessions_dir) setSessionsDir(sessionsResult.sessions_dir);
+      } catch {
+        // browser dev mode or sidecar not running
       }
     };
     init();
@@ -172,10 +177,10 @@ export default function App() {
   // Session actions
   // ---------------------------------------------------------------------------
 
-  const handleNewSession = useCallback(async () => {
+  const handleNewSession = useCallback(async (name: string) => {
     try {
       const result = await rpc.sessionsCreate({
-        name: "New Session",
+        name,
         script_content: "",
         render_settings: DEFAULT_RENDER_SETTINGS,
       });
