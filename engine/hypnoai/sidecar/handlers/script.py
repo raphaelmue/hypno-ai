@@ -5,7 +5,7 @@ import warnings
 from pathlib import Path
 from typing import Any
 
-from ...parser import find_variables, inject_variables, parse
+from ...parser import find_variables, parse
 from ...parser.ast_nodes import (
     PauseBlock,
     SectionBlock,
@@ -23,8 +23,11 @@ _IDEAL_WPM_MAX = 80
 def handle_script_lint(session: SidecarSession, params: dict[str, Any]) -> dict:
     """Parse and validate a .hypno script.
 
-    Expected params:
+    Expected params (one of):
         path (str): Absolute path to the script file.
+        script_content (str): Raw script source string.
+    Optional:
+        variables (dict): Variable values already provided by the user.
 
     Returns:
         valid (bool)
@@ -34,15 +37,19 @@ def handle_script_lint(session: SidecarSession, params: dict[str, Any]) -> dict:
         variables (list[str])
         pacing (list[{paragraph, wpm}])
     """
+    script_content = params.get("script_content")
     path_str = params.get("path")
-    if not path_str:
-        raise ValueError("Missing required param 'path'")
+    variables_provided: dict = params.get("variables") or {}
 
-    script_path = Path(path_str)
-    if not script_path.exists():
-        raise FileNotFoundError(f"Script not found: {script_path}")
-
-    source = script_path.read_text(encoding="utf-8")
+    if script_content is not None:
+        source = script_content
+    elif path_str:
+        script_path = Path(path_str)
+        if not script_path.exists():
+            raise FileNotFoundError(f"Script not found: {script_path}")
+        source = script_path.read_text(encoding="utf-8")
+    else:
+        raise ValueError("Missing required param 'path' or 'script_content'")
 
     # Collect parser warnings
     with warnings.catch_warnings(record=True) as caught_warnings:
@@ -51,6 +58,12 @@ def handle_script_lint(session: SidecarSession, params: dict[str, Any]) -> dict:
 
     warning_messages = [str(w.message) for w in caught_warnings]
     variables = sorted(set(find_variables(source)))
+
+    # Warn about variables referenced in the script but not provided
+    missing = [v for v in variables if not variables_provided.get(v)]
+    if missing:
+        noun = "variable" if len(missing) == 1 else "variables"
+        warning_messages.append(f"Undefined {noun}: {', '.join(missing)}")
 
     # Gather statistics
     text_blocks = [b for b in blocks if isinstance(b, TextBlock)]

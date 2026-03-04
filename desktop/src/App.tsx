@@ -110,7 +110,7 @@ export default function App() {
   activeSessionIdRef.current = activeSessionId;
 
   const scheduleAutosave = useCallback(
-    (content: string, settings: RenderSettings) => {
+    (content: string, settings: RenderSettings, vars: SessionVariables) => {
       if (autosaveRef.current) clearTimeout(autosaveRef.current);
       autosaveRef.current = setTimeout(async () => {
         const id = activeSessionIdRef.current;
@@ -121,6 +121,7 @@ export default function App() {
             id,
             script_content: content,
             render_settings: settings,
+            variables: vars,
           });
           // Update modified_at in local list
           setSessions((prev) =>
@@ -216,6 +217,7 @@ export default function App() {
         if (data.render_settings && Object.keys(data.render_settings).length > 0) {
           setRenderSettings((prev) => ({ ...prev, ...data.render_settings }));
         }
+        setVariables(data.variables ?? {});
       } catch (e) {
         console.error("Failed to load session:", e);
       }
@@ -276,17 +278,25 @@ export default function App() {
   const handleScriptChange = useCallback(
     (content: string) => {
       setScriptContent(content);
-      scheduleAutosave(content, renderSettings);
+      scheduleAutosave(content, renderSettings, variables);
     },
-    [scheduleAutosave, renderSettings]
+    [scheduleAutosave, renderSettings, variables]
   );
 
   const handleSettingsChange = useCallback(
     (settings: RenderSettings) => {
       setRenderSettings(settings);
-      scheduleAutosave(scriptContent, settings);
+      scheduleAutosave(scriptContent, settings, variables);
     },
-    [scheduleAutosave, scriptContent]
+    [scheduleAutosave, scriptContent, variables]
+  );
+
+  const handleVariablesChange = useCallback(
+    (vars: SessionVariables) => {
+      setVariables(vars);
+      scheduleAutosave(scriptContent, renderSettings, vars);
+    },
+    [scheduleAutosave, scriptContent, renderSettings]
   );
 
   // ---------------------------------------------------------------------------
@@ -294,51 +304,23 @@ export default function App() {
   // ---------------------------------------------------------------------------
 
   const handleLint = useCallback(async () => {
+    if (!scriptContent.trim()) return;
     setIsLinting(true);
     try {
-      const stubResult: LintResult = {
-        valid: true,
-        warnings: [],
-        paragraph_count: scriptContent.split(/\n\n+/).filter((p) => {
-          const t = p.trim();
-          return t && !t.startsWith("@{");
-        }).length,
-        pause_count: (scriptContent.match(/@\{pause:/g) || []).length,
-        section_count: (scriptContent.match(/@\{section:/g) || []).length,
-        estimated_duration_s:
-          scriptContent.split(/\n\n+/).reduce((acc, p) => {
-            const words = p.trim().split(/\s+/).length;
-            return acc + (words / (130 * 0.85)) * 60;
-          }, 0) +
-          (scriptContent.match(/@\{pause:\s*(\d+)/g) || []).reduce(
-            (acc, m) => acc + parseInt(m.replace(/@\{pause:\s*/, ""), 10),
-            0
-          ),
-        variables: Array.from(scriptContent.matchAll(/\{\{(\w+)\}\}/g)).map(
-          (m) => m[1]
-        ),
-        pacing: scriptContent
-          .split(/\n\n+/)
-          .filter((p) => {
-            const t = p.trim();
-            return t && !t.startsWith("@{");
-          })
-          .map((_, i) => ({
-            paragraph: i,
-            wpm: Math.round(130 * 0.85),
-          })),
-      };
-      setLintResult(stubResult);
+      const result = await rpc.lintScript(scriptContent, variables);
+      setLintResult(result);
+    } catch (e) {
+      console.error("Lint failed:", e);
     } finally {
       setIsLinting(false);
     }
-  }, [scriptContent]);
+  }, [scriptContent, variables, rpc]);
 
-  // Auto-lint on script change (debounced)
+  // Auto-lint on script/variable change (debounced)
   useEffect(() => {
     const t = setTimeout(handleLint, 800);
     return () => clearTimeout(t);
-  }, [scriptContent]);
+  }, [scriptContent, variables]);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -369,6 +351,18 @@ export default function App() {
 
   const handleRender = useCallback(async () => {
     if (!renderSettings.voice) return;
+    const voiceInstalled = voices.some((v) => v.id === renderSettings.voice);
+    if (!voiceInstalled) {
+      setRenderProgress({
+        state: "failed",
+        current_paragraph: 0,
+        total: 0,
+        chunk_paths: [],
+        elapsed_s: 0,
+        error: `Voice "${renderSettings.voice}" is not installed. Install it via Manage Voices.`,
+      });
+      return;
+    }
     setIsRendering(true);
     setRenderProgress(null);
     try {
@@ -388,7 +382,7 @@ export default function App() {
       console.error("Render failed:", e);
       setIsRendering(false);
     }
-  }, [scriptContent, renderSettings, outputPath, variables, rpc, startPolling]);
+  }, [scriptContent, renderSettings, outputPath, variables, voices, rpc, startPolling]);
 
   const handleEngineChange = useCallback(async (engine: string) => {
     try {
@@ -505,7 +499,7 @@ export default function App() {
         sessionsDir={sessionsDir}
         onChangeSessionsDir={handleChangeSessionsDir}
         variables={variables}
-        onVariablesChange={setVariables}
+        onVariablesChange={handleVariablesChange}
         lintResult={lintResult}
         modelStatus={modelStatus}
         onOpenModelManager={() => setShowModelManager(true)}

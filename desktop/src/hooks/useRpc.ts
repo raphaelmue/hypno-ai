@@ -78,9 +78,15 @@ import type {
 export function useRpc() {
   // --- Script ---
 
-  const lintScript = useCallback((path: string): Promise<LintResult> => {
-    return rpcCall<LintResult>("script.lint", { path });
-  }, []);
+  const lintScript = useCallback(
+    (scriptContent: string, variables?: Record<string, string>): Promise<LintResult> => {
+      return rpcCall<LintResult>("script.lint", {
+        script_content: scriptContent,
+        ...(variables ? { variables } : {}),
+      });
+    },
+    []
+  );
 
   // --- Render ---
 
@@ -257,6 +263,7 @@ export function useRpc() {
       script_path: string;
       output_path: string;
       render_settings: Partial<RenderSettings>;
+      variables: Record<string, string>;
       is_draft: boolean;
       modified_at: string;
     }> => rpcCall("sessions.load", { id }),
@@ -268,6 +275,7 @@ export function useRpc() {
       id: string;
       script_content?: string;
       render_settings?: Partial<RenderSettings>;
+      variables?: Record<string, string>;
       name?: string;
       is_draft?: boolean;
     }): Promise<{ id: string; modified_at: string }> =>

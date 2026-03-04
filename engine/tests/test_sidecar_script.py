@@ -41,7 +41,10 @@ def simple_script(tmp_path) -> Path:
 
 
 def test_lint_valid_script(session, simple_script):
-    result = handle_script_lint(session, {"path": str(simple_script)})
+    # Provide the variable so the script is considered fully valid
+    result = handle_script_lint(
+        session, {"path": str(simple_script), "variables": {"name": "World"}}
+    )
 
     assert result["valid"] is True
     assert result["warnings"] == []
@@ -52,8 +55,18 @@ def test_lint_valid_script(session, simple_script):
     assert len(result["pacing"]) == 3
 
 
-def test_lint_pacing_entries(session, simple_script):
+def test_lint_undefined_variable_warning(session, simple_script):
+    # No variables provided → lint should warn about {{name}}
     result = handle_script_lint(session, {"path": str(simple_script)})
+
+    assert result["valid"] is False
+    assert any("name" in w for w in result["warnings"])
+
+
+def test_lint_pacing_entries(session, simple_script):
+    result = handle_script_lint(
+        session, {"path": str(simple_script), "variables": {"name": "World"}}
+    )
 
     for i, entry in enumerate(result["pacing"]):
         assert entry["paragraph"] == i

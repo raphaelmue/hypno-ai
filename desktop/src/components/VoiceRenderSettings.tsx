@@ -129,6 +129,8 @@ export function VoiceRenderSettings({
   const filteredVoices = voices.filter(
     (v) => v.engine === settings.engine || settings.engine === "all"
   );
+  const isVoiceInstalled =
+    !settings.voice || filteredVoices.some((v) => v.id === settings.voice);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const isDone = renderProgress?.state === "done";
@@ -194,6 +196,11 @@ export function VoiceRenderSettings({
             </option>
           ))}
         </select>
+        {settings.voice && !isVoiceInstalled && (
+          <p className="text-[10px] text-warning mt-1">
+            Voice not installed — download it via Manage.
+          </p>
+        )}
       </div>
 
       {/* Emotion */}
@@ -267,7 +274,7 @@ export function VoiceRenderSettings({
         ) : (
           <button
             onClick={onRender}
-            disabled={!settings.voice || !outputPath}
+            disabled={!settings.voice || !outputPath || !isVoiceInstalled}
             className="w-full py-1.5 text-xs rounded bg-accent text-surface-950 hover:bg-accent-hover font-medium disabled:opacity-50"
           >
             ⏺ Render

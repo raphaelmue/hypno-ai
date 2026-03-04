@@ -152,6 +152,7 @@ def handle_sessions_load(_session: Any, params: dict[str, Any]) -> dict:
         "script_path": str(script_file),
         "output_path": str(session_dir / "output.wav"),
         "render_settings": meta.get("render_settings") or {},
+        "variables": meta.get("variables") or {},
         "is_draft": meta.get("is_draft", False),
         "modified_at": meta.get("modified_at", ""),
     }
@@ -172,6 +173,8 @@ def handle_sessions_save(_session: Any, params: dict[str, Any]) -> dict:
         meta["name"] = params["name"]
     if "render_settings" in params:
         meta["render_settings"] = params["render_settings"]
+    if "variables" in params:
+        meta["variables"] = params["variables"]
     if "is_draft" in params:
         meta["is_draft"] = bool(params["is_draft"])
 
