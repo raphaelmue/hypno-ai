@@ -109,30 +109,57 @@ hypnoai models download kokoro           # install via pip (shows command)
 
 ## Desktop App
 
-The desktop app is a Tauri v2 shell around a Python sidecar process.
+The desktop app is an Electron-based GUI with a Python sidecar process.
 
-### Requirements
-
-- Python environment with at least one TTS engine installed (see above)
-- Node.js 20+, yarn 4.12+
-- Rust toolchain (`rustup`) and Tauri CLI
-
-### Run in development
+### Quick Start (Development)
 
 ```bash
+# Install Python dependencies
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -e ".[dev,piper,pitch]"
+
+# Install desktop dependencies
 cd desktop
+corepack enable
 yarn install
-yarn tauri dev
+
+# Run in development mode
+yarn dev
 ```
 
-### Build a distributable
+### Building for Distribution
+
+See [docs/PACKAGING.md](docs/PACKAGING.md) for detailed packaging instructions.
+
+**Quick build (all platforms):**
+
+```bash
+# Unix (macOS/Linux)
+./scripts/build.sh
+
+# Windows
+scripts\build.bat
+```
+
+The packaged application will be in `desktop/release/`.
+
+**Platform-specific builds:**
 
 ```bash
 cd desktop
-yarn tauri build
+yarn build:dist:win      # Windows
+yarn build:dist:mac      # macOS
+yarn build:dist:linux    # Linux
 ```
 
-The compiled binary is placed in `desktop/src-tauri/target/release/bundle/`.
+### Pre-built Binaries
+
+Download pre-built packages from the [Releases](https://github.com/your-org/hypno-ai/releases) page:
+
+- **Windows**: `.exe` installer or portable
+- **macOS**: `.dmg` disk image
+- **Linux**: `.AppImage`, `.deb`, or `.rpm`
 
 ---
 
@@ -175,9 +202,16 @@ hypno-ai/
 │   │   ├── sidecar/      # JSON-RPC bridge for the desktop app
 │   │   └── cli.py        # Typer CLI entrypoint
 │   └── tests/
-└── desktop/              # Tauri v2 + React frontend
-    ├── src/              # React components & hooks
-    └── src-tauri/        # Rust shell
+├── desktop/              # Electron + React frontend
+│   ├── src/              # React components & hooks
+│   ├── electron/         # Electron main & preload
+│   └── build/            # Build resources (icons, etc.)
+├── scripts/              # Build scripts
+│   ├── build.sh          # Unix build script
+│   └── build.bat         # Windows build script
+├── docs/
+│   └── PACKAGING.md      # Detailed packaging guide
+└── hypnoai-sidecar.spec  # PyInstaller spec for sidecar
 ```
 
 ---

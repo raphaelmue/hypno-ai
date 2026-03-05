@@ -34,6 +34,12 @@ dist/
 .eggs/
 *.whl
 
+# PyInstaller
+*.spec.bak
+build/
+dist/hypnoai-sidecar/
+dist/hypnoai-sidecar-*/
+
 # Rust / Cargo
 desktop/src-tauri/target/
 
@@ -48,6 +54,10 @@ desktop/node_modules/
 
 # Frontend build output
 desktop/dist/
+desktop/dist-electron/
+
+# Electron builder output
+desktop/release/
 
 # Vitest / frontend coverage
 desktop/coverage/
@@ -62,6 +72,14 @@ desktop/src-tauri/target/
 *.AppImage
 *.msi
 *.exe
+*.zip
+
+# electron-builder resources (keep the directory structure but ignore icon files if not committed)
+desktop/build/*.icns
+desktop/build/*.ico
+desktop/build/*.png
+!desktop/build/README.md
+!desktop/build/entitlements.mac.plist
 
 # OS
 .DS_Store

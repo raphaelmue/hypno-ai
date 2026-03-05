@@ -24,6 +24,7 @@ pitch = ["librosa>=0.11.0"]
 dev = [
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
+    "pyinstaller>=6.0.0",
 ]
 
 [project.scripts]
