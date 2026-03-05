@@ -1,5 +1,5 @@
 /**
- * Model Manager panel — install/uninstall TTS engines and manage Piper voice packs.
+ * Engine Manager panel — install/uninstall TTS engines and manage Piper voice packs.
  * Accessible at any time via the sidebar or settings (§14.4).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -23,7 +23,7 @@ interface ActiveInstall {
   error: string | null;
 }
 
-export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
+export function EngineManager({ onClose, isFirstLaunch = false }: Props) {
   const rpc = useRpc();
   const [status, setStatus] = useState<ModelStatus | null>(null);
   const [engines, setEngines] = useState<EngineSpec[]>([]);
@@ -52,7 +52,7 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
     } finally {
       setCatalogLoading(false);
     }
-  }, [rpc]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -73,11 +73,11 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
     } catch {
       // Status is informational; swallow errors silently.
     }
-  }, [rpc]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchData().then(() => fetchCatalog());
-  }, [fetchData, fetchCatalog]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Poll download progress for active voice-pack downloads
   useEffect(() => {
@@ -105,7 +105,7 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [activeDownloads, rpc, fetchData]);
+  }, [activeDownloads]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleInstall = async (engineName: string) => {
     setActiveInstall({ engine: engineName, lines: [], error: null });

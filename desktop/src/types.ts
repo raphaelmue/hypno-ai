@@ -188,4 +188,4 @@ export interface SessionInfo {
   is_draft: boolean;
 }
 
-export type AppView = "editor" | "model-manager" | "first-launch";
+export type AppView = "editor" | "engine-manager" | "first-launch";

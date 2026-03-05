@@ -6,13 +6,13 @@
  * - Script editor (main content area)
  * - Voice/render settings (right panel)
  * - AI assistant (slide-out overlay)
- * - Model manager (full-screen panel)
- * - First-launch wizard (rendered as Model Manager with isFirstLaunch=true)
+ * - Engine manager (full-screen panel)
+ * - First-launch wizard (rendered as Engine Manager with isFirstLaunch=true)
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AIAssistant,
-  ModelManager,
+  EngineManager,
   ScriptEditor,
   Sidebar,
   VoiceManager,
@@ -55,7 +55,7 @@ export default function App() {
 
   // View state
   const [isLoading, setIsLoading] = useState(true);
-  const [showModelManager, setShowModelManager] = useState(false);
+  const [showEngineManager, setShowEngineManager] = useState(false);
   const [isFirstLaunch, setIsFirstLaunch] = useState(false);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
   const [showVoiceManager, setShowVoiceManager] = useState(false);
@@ -155,7 +155,7 @@ export default function App() {
           setVoices(r.voices);
           if (r.voices.length === 0) {
             setIsFirstLaunch(true);
-            setShowModelManager(true);
+            setShowEngineManager(true);
           }
         }),
         rpc.enginesActive().then((r) => {
@@ -504,7 +504,7 @@ export default function App() {
         onVariablesChange={handleVariablesChange}
         lintResult={lintResult}
         modelStatus={modelStatus}
-        onOpenModelManager={() => setShowModelManager(true)}
+        onOpenEngineManager={() => setShowEngineManager(true)}
         installedModelCount={voices.length}
       />
 
@@ -528,7 +528,7 @@ export default function App() {
               AI Assistant
             </button>
             <button
-              onClick={() => setShowModelManager(true)}
+              onClick={() => setShowEngineManager(true)}
               className="text-xs px-2 py-1 rounded bg-surface-700 hover:bg-surface-600 text-surface-200"
             >
               Models
@@ -596,14 +596,14 @@ export default function App() {
         </div>
       )}
 
-      {/* Model Manager / First-Launch Wizard */}
-      {showModelManager && (
+      {/* Engine Manager / First-Launch Wizard */}
+      {showEngineManager && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
           <div className="w-full max-w-2xl h-[80vh] rounded-lg overflow-hidden shadow-2xl border border-surface-700">
-            <ModelManager
+            <EngineManager
               isFirstLaunch={isFirstLaunch}
               onClose={() => {
-                setShowModelManager(false);
+                setShowEngineManager(false);
                 setIsFirstLaunch(false);
               }}
             />

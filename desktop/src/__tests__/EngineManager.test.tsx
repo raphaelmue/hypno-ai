@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ModelManager } from "../components/ModelManager";
+import { EngineManager } from "../components/EngineManager";
 import type { CatalogVoice, EngineSpec, ModelStatus } from "../types";
 
 // ---------------------------------------------------------------------------
@@ -85,7 +85,7 @@ const CATALOG_VOICES: CatalogVoice[] = [
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("ModelManager", () => {
+describe("EngineManager", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRpc.modelsStatus.mockResolvedValue(STATUS);
@@ -107,13 +107,13 @@ describe("ModelManager", () => {
 
   it("shows loading spinner initially", () => {
     mockRpc.modelsStatus.mockImplementation(() => new Promise(() => {}));
-    render(<ModelManager />);
+    render(<EngineManager />);
     expect(screen.getByText(/Loading/)).toBeInTheDocument();
   });
 
   it("shows error message when the RPC call fails", async () => {
     mockRpc.modelsStatus.mockRejectedValue(new Error("connection refused"));
-    render(<ModelManager />);
+    render(<EngineManager />);
     await waitFor(() =>
       expect(screen.getByText(/Failed to load/)).toBeInTheDocument()
     );
@@ -122,7 +122,7 @@ describe("ModelManager", () => {
   // --- Status bar ---
 
   it('shows "CPU only" when GPU is not available', async () => {
-    render(<ModelManager />);
+    render(<EngineManager />);
     await waitFor(() =>
       expect(screen.getByText(/CPU only/)).toBeInTheDocument()
     );
@@ -134,7 +134,7 @@ describe("ModelManager", () => {
       vram_total_mb: 8192,
       disk_used_mb: 1200,
     });
-    render(<ModelManager />);
+    render(<EngineManager />);
     await waitFor(() =>
       expect(screen.getByText(/GPU available/)).toBeInTheDocument()
     );
@@ -144,7 +144,7 @@ describe("ModelManager", () => {
 
   it("shows all engines with installed status", async () => {
     mockRpc.enginesList.mockResolvedValue({ engines: ENGINES });
-    render(<ModelManager />);
+    render(<EngineManager />);
     await waitFor(() =>
       expect(screen.getByText("piper")).toBeInTheDocument()
     );
@@ -153,7 +153,7 @@ describe("ModelManager", () => {
 
   it("shows GPU badge for GPU-required engines", async () => {
     mockRpc.enginesList.mockResolvedValue({ engines: ENGINES });
-    render(<ModelManager />);
+    render(<EngineManager />);
     await waitFor(() =>
       expect(screen.getByText("kokoro")).toBeInTheDocument()
     );
@@ -162,7 +162,7 @@ describe("ModelManager", () => {
 
   it("shows Install button for uninstalled engines", async () => {
     mockRpc.enginesList.mockResolvedValue({ engines: ENGINES });
-    render(<ModelManager />);
+    render(<EngineManager />);
     await waitFor(() => screen.getByText("kokoro"));
     expect(screen.getByRole("button", { name: /install/i })).toBeInTheDocument();
   });
@@ -170,7 +170,7 @@ describe("ModelManager", () => {
   it("calls enginesInstall when Install is clicked", async () => {
     const user = userEvent.setup();
     mockRpc.enginesList.mockResolvedValue({ engines: ENGINES });
-    render(<ModelManager />);
+    render(<EngineManager />);
     await waitFor(() => screen.getByRole("button", { name: /install/i }));
     await user.click(screen.getByRole("button", { name: /install/i }));
     expect(mockRpc.enginesInstall).toHaveBeenCalledWith("kokoro", expect.any(Function));
@@ -179,7 +179,7 @@ describe("ModelManager", () => {
   it("shows Uninstall button for installed non-piper engines", async () => {
     const installedKokoro: EngineSpec = { ...ENGINES[1], installed: true };
     mockRpc.enginesList.mockResolvedValue({ engines: [ENGINES[0], installedKokoro] });
-    render(<ModelManager />);
+    render(<EngineManager />);
     await waitFor(() => screen.getByRole("button", { name: /uninstall/i }));
   });
 
@@ -188,7 +188,7 @@ describe("ModelManager", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     const installedKokoro: EngineSpec = { ...ENGINES[1], installed: true };
     mockRpc.enginesList.mockResolvedValue({ engines: [ENGINES[0], installedKokoro] });
-    render(<ModelManager />);
+    render(<EngineManager />);
     await waitFor(() => screen.getByRole("button", { name: /uninstall/i }));
     await user.click(screen.getByRole("button", { name: /uninstall/i }));
     expect(mockRpc.enginesUninstall).toHaveBeenCalledWith("kokoro");
@@ -199,7 +199,7 @@ describe("ModelManager", () => {
     vi.spyOn(window, "confirm").mockReturnValue(false);
     const installedKokoro: EngineSpec = { ...ENGINES[1], installed: true };
     mockRpc.enginesList.mockResolvedValue({ engines: [ENGINES[0], installedKokoro] });
-    render(<ModelManager />);
+    render(<EngineManager />);
     await waitFor(() => screen.getByRole("button", { name: /uninstall/i }));
     await user.click(screen.getByRole("button", { name: /uninstall/i }));
     expect(mockRpc.enginesUninstall).not.toHaveBeenCalled();
@@ -210,7 +210,7 @@ describe("ModelManager", () => {
   it("shows Piper Voice Packs section when piper is installed", async () => {
     mockRpc.enginesList.mockResolvedValue({ engines: ENGINES });
     mockRpc.voicesCatalog.mockResolvedValue({ voices: CATALOG_VOICES });
-    render(<ModelManager />);
+    render(<EngineManager />);
     await waitFor(() =>
       expect(screen.getByText("Piper Voice Packs")).toBeInTheDocument()
     );
@@ -219,7 +219,7 @@ describe("ModelManager", () => {
   it("shows installed voice pack with Remove button", async () => {
     mockRpc.enginesList.mockResolvedValue({ engines: ENGINES });
     mockRpc.voicesCatalog.mockResolvedValue({ voices: CATALOG_VOICES });
-    render(<ModelManager />);
+    render(<EngineManager />);
     await waitFor(() => screen.getByText("en_US-amy-medium"));
     expect(screen.getByRole("button", { name: /remove/i })).toBeInTheDocument();
   });
@@ -227,7 +227,7 @@ describe("ModelManager", () => {
   it("shows available voice pack with Download button", async () => {
     mockRpc.enginesList.mockResolvedValue({ engines: ENGINES });
     mockRpc.voicesCatalog.mockResolvedValue({ voices: CATALOG_VOICES });
-    render(<ModelManager />);
+    render(<EngineManager />);
     await waitFor(() => screen.getByText("en_US-ryan-high"));
     expect(screen.getByRole("button", { name: /download/i })).toBeInTheDocument();
   });
@@ -236,7 +236,7 @@ describe("ModelManager", () => {
     const user = userEvent.setup();
     mockRpc.enginesList.mockResolvedValue({ engines: ENGINES });
     mockRpc.voicesCatalog.mockResolvedValue({ voices: CATALOG_VOICES });
-    render(<ModelManager />);
+    render(<EngineManager />);
     await waitFor(() => screen.getByRole("button", { name: /download/i }));
     await user.click(screen.getByRole("button", { name: /download/i }));
     expect(mockRpc.modelsDownload).toHaveBeenCalledWith("en_US-ryan-high");
@@ -247,7 +247,7 @@ describe("ModelManager", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     mockRpc.enginesList.mockResolvedValue({ engines: ENGINES });
     mockRpc.voicesCatalog.mockResolvedValue({ voices: CATALOG_VOICES });
-    render(<ModelManager />);
+    render(<EngineManager />);
     await waitFor(() => screen.getByRole("button", { name: /remove/i }));
     await user.click(screen.getByRole("button", { name: /remove/i }));
     expect(mockRpc.modelsRemove).toHaveBeenCalledWith("en_US-amy-medium");
@@ -258,7 +258,7 @@ describe("ModelManager", () => {
     vi.spyOn(window, "confirm").mockReturnValue(false);
     mockRpc.enginesList.mockResolvedValue({ engines: ENGINES });
     mockRpc.voicesCatalog.mockResolvedValue({ voices: CATALOG_VOICES });
-    render(<ModelManager />);
+    render(<EngineManager />);
     await waitFor(() => screen.getByRole("button", { name: /remove/i }));
     await user.click(screen.getByRole("button", { name: /remove/i }));
     expect(mockRpc.modelsRemove).not.toHaveBeenCalled();
@@ -267,7 +267,7 @@ describe("ModelManager", () => {
   // --- First-launch mode ---
 
   it("shows first-launch header when isFirstLaunch=true", async () => {
-    render(<ModelManager isFirstLaunch={true} />);
+    render(<EngineManager isFirstLaunch={true} />);
     await waitFor(() =>
       expect(screen.getByText(/Welcome to HypnoAI/)).toBeInTheDocument()
     );
@@ -277,7 +277,7 @@ describe("ModelManager", () => {
     // piper installed but no voice packs, no other engines
     mockRpc.enginesList.mockResolvedValue({ engines: [ENGINES[0]] });
     mockRpc.voicesCatalog.mockResolvedValue({ voices: [] });
-    render(<ModelManager isFirstLaunch={true} onClose={vi.fn()} />);
+    render(<EngineManager isFirstLaunch={true} onClose={vi.fn()} />);
     await waitFor(() => screen.getByRole("button", { name: /Get Started/ }));
     expect(screen.getByRole("button", { name: /Get Started/ })).toBeDisabled();
   });
@@ -285,7 +285,7 @@ describe("ModelManager", () => {
   it("'Get Started' button is enabled when a Piper voice is installed", async () => {
     mockRpc.enginesList.mockResolvedValue({ engines: ENGINES });
     mockRpc.voicesCatalog.mockResolvedValue({ voices: CATALOG_VOICES });
-    render(<ModelManager isFirstLaunch={true} onClose={vi.fn()} />);
+    render(<EngineManager isFirstLaunch={true} onClose={vi.fn()} />);
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: /Get Started/ })
@@ -297,7 +297,7 @@ describe("ModelManager", () => {
     const installedKokoro: EngineSpec = { ...ENGINES[1], installed: true };
     mockRpc.enginesList.mockResolvedValue({ engines: [ENGINES[0], installedKokoro] });
     mockRpc.voicesCatalog.mockResolvedValue({ voices: [] });
-    render(<ModelManager isFirstLaunch={true} onClose={vi.fn()} />);
+    render(<EngineManager isFirstLaunch={true} onClose={vi.fn()} />);
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: /Get Started/ })

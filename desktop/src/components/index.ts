@@ -1,5 +1,5 @@
 export { AIAssistant } from "./AIAssistant";
-export { ModelManager } from "./ModelManager";
+export { EngineManager } from "./EngineManager";
 export { PacingHeatmap } from "./PacingHeatmap";
 export { ScriptEditor } from "./ScriptEditor";
 export { Sidebar } from "./Sidebar";

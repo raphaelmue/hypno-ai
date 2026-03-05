@@ -75,7 +75,7 @@ interface Props {
   onVariablesChange: (v: SessionVariables) => void;
   lintResult: LintResult | null;
   modelStatus: ModelStatus | null;
-  onOpenModelManager: () => void;
+  onOpenEngineManager: () => void;
   installedModelCount: number;
 }
 
@@ -228,7 +228,7 @@ export function Sidebar({
   onVariablesChange,
   lintResult,
   modelStatus,
-  onOpenModelManager,
+  onOpenEngineManager,
   installedModelCount,
 }: Props) {
   const [showNewDialog, setShowNewDialog] = useState(false);
@@ -320,7 +320,7 @@ export function Sidebar({
           <div className="text-xs text-surface-500 italic">–</div>
         )}
         <button
-          onClick={onOpenModelManager}
+          onClick={onOpenEngineManager}
           className="mt-2 text-[10px] text-accent hover:text-accent-hover"
         >
           Manage…
