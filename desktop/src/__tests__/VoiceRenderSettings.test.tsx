@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
 import { VoiceRenderSettings } from "../components/VoiceRenderSettings";
-import type { RenderProgress, RenderSettings, VoiceInfo } from "../types";
+import type { EngineSpec, RenderProgress, RenderSettings, VoiceInfo } from "../types";
 
 const SETTINGS: RenderSettings = {
   engine: "piper",
@@ -36,12 +36,41 @@ const VOICES: VoiceInfo[] = [
   },
 ];
 
+const ENGINES: EngineSpec[] = [
+  {
+    name: "piper",
+    installed: true,
+    voice_type: "catalog",
+    vram_mb: 0,
+    model_size_gb: 0,
+    languages: ["en"],
+    supports_cloning: false,
+    supports_emotions: false,
+    emotions: [],
+    license: "MIT",
+    description: "Piper TTS",
+  },
+  {
+    name: "kokoro",
+    installed: true,
+    voice_type: "preset",
+    vram_mb: 0,
+    model_size_gb: 0,
+    languages: ["en"],
+    supports_cloning: false,
+    supports_emotions: false,
+    emotions: [],
+    license: "Apache-2.0",
+    description: "Kokoro TTS",
+  },
+];
+
 function makeProps(overrides: Record<string, unknown> = {}) {
   return {
     settings: SETTINGS,
     onSettingsChange: vi.fn(),
     voices: VOICES,
-    engines: ["piper", "kokoro"],
+    engines: ENGINES,
     renderProgress: null,
     isRendering: false,
     onRender: vi.fn(),

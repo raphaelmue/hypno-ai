@@ -331,7 +331,7 @@ export function EngineManager({ onClose, isFirstLaunch = false }: Props) {
                       {engine.license}
                     </div>
                   </div>
-                  {engine.installed ? (
+                  {engine.name !== "piper" && (engine.installed ? (
                     <button
                       onClick={() => handleUninstall(engine.name)}
                       disabled={uninstallingEngine === engine.name || !!activeInstall}
@@ -347,7 +347,7 @@ export function EngineManager({ onClose, isFirstLaunch = false }: Props) {
                     >
                       Install
                     </button>
-                  )}
+                  ))}
                 </div>
               ))}
             </div>

@@ -265,7 +265,7 @@ def _run_pip(cmd: list[str], line_callback: LineCallback | None) -> None:
             env=env,
         )
         assert proc.stdout is not None
-        for line in iter(proc.stdout.readline, ""):
+        for line in proc.stdout:
             line_callback(line.rstrip())
         proc.wait()
         result = proc

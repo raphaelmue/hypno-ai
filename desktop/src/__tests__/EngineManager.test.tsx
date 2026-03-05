@@ -112,7 +112,7 @@ describe("EngineManager", () => {
   });
 
   it("shows error message when the RPC call fails", async () => {
-    mockRpc.modelsStatus.mockRejectedValue(new Error("connection refused"));
+    mockRpc.enginesList.mockRejectedValue(new Error("connection refused"));
     render(<EngineManager />);
     await waitFor(() =>
       expect(screen.getByText(/Failed to load/)).toBeInTheDocument()
