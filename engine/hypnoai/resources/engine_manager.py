@@ -182,6 +182,9 @@ def is_installed(name: str) -> bool:
     spec = ENGINES.get(name)
     if spec is None:
         return False
+    # Invalidate Python's import caches so that packages removed by pip
+    # (or freshly installed) are reflected immediately without a restart.
+    importlib.invalidate_caches()
     return importlib.util.find_spec(spec.import_name) is not None
 
 
