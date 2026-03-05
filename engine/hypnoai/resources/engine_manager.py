@@ -249,8 +249,9 @@ def _check_not_frozen() -> None:
 def _run_pip(cmd: list[str], line_callback: LineCallback | None) -> None:
     """Execute *cmd* (a pip invocation), optionally capturing output."""
     if line_callback is None:
-        # Stream directly to terminal — no capture.
-        result = subprocess.run(cmd, check=False)
+        # Capture output so it doesn't pollute the parent's stdout (which is
+        # the JSON-RPC pipe when running as a sidecar).
+        result = subprocess.run(cmd, check=False, capture_output=True, text=True)
     else:
         # PYTHONUNBUFFERED ensures pip flushes each line immediately even when
         # writing to a pipe (which would otherwise be block-buffered).

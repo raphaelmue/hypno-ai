@@ -129,11 +129,11 @@ export function EngineManager({ onClose, isFirstLaunch = false }: Props) {
     setUninstallingEngine(engineName);
     try {
       await rpc.enginesUninstall(engineName);
-      fetchData().then(() => fetchCatalog());
     } catch (e) {
       console.error("Uninstall failed:", e);
     } finally {
       setUninstallingEngine(null);
+      fetchData().then(() => fetchCatalog());
     }
   };
 
