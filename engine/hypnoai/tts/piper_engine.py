@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -86,8 +87,24 @@ class PiperEngine:
             "--noise_w", "0.8",
         ]
         output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Piper passes text to espeak-ng for phonemisation. espeak-ng uses the
+        # process locale to decode input bytes. If LANG=C (ASCII-only, common
+        # when the sidecar is spawned by Electron without a full user locale),
+        # multi-byte UTF-8 sequences for characters like ä, ö, ü, ß are split
+        # into individual bytes and mispronounced or silenced. Force C.UTF-8
+        # when no UTF-8 locale is already present in the environment.
+        env = dict(os.environ)
+        if not any(
+            (env.get(v) or "").upper().endswith(("UTF-8", "UTF8"))
+            for v in ("LC_ALL", "LC_CTYPE", "LANG")
+        ):
+            env["LC_ALL"] = "C.UTF-8"
+
         try:
-            result = subprocess.run(cmd, input=text.encode("utf-8"), capture_output=True)
+            result = subprocess.run(
+                cmd, input=text.encode("utf-8"), capture_output=True, env=env
+            )
         except FileNotFoundError:
             raise FileNotFoundError(
                 f"Piper executable not found: {self.piper_bin!r}. "
