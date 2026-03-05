@@ -3,14 +3,14 @@
  * progress bar, audio player, and Render button.
  */
 import { useRef } from "react";
-import type { RenderProgress, RenderSettings, VoiceInfo } from "../types";
+import type { EngineSpec, RenderProgress, RenderSettings, VoiceInfo } from "../types";
 import { localFileUrl, showSaveDialog } from "../hooks/useRpc";
 
 interface Props {
   settings: RenderSettings;
   onSettingsChange: (s: RenderSettings) => void;
   voices: VoiceInfo[];
-  engines: string[];
+  engines: EngineSpec[];
   renderProgress: RenderProgress | null;
   isRendering: boolean;
   onRender: () => void;
@@ -164,8 +164,8 @@ export function VoiceRenderSettings({
           className="w-full px-2 py-1 text-xs bg-surface-800 border border-surface-700 rounded text-surface-100 focus:outline-none focus:border-accent"
         >
           {engines.map((e) => (
-            <option key={e} value={e}>
-              {e}
+            <option key={e.name} value={e.name} disabled={!e.installed}>
+              {e.name}{!e.installed ? " (not installed)" : ""}
             </option>
           ))}
         </select>

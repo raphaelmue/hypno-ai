@@ -168,7 +168,7 @@ export function EngineManager({ onClose, isFirstLaunch = false }: Props) {
 
   const installedVoices = catalogVoices.filter((v) => v.installed);
   const availableVoices = catalogVoices.filter((v) => !v.installed);
-  const piperInstalled = engines.find((e) => e.name === "piper")?.installed ?? true;
+  const piperInstalled = engines.find((e) => e.name === "piper")?.installed ?? false;
   const anyEngineReady =
     installedVoices.length > 0 ||
     engines.some((e) => e.name !== "piper" && e.installed);
@@ -298,7 +298,7 @@ export function EngineManager({ onClose, isFirstLaunch = false }: Props) {
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm text-surface-200 font-medium">
+                      <span className="text-sm text-surface-200 font-medium capitalize">
                         {engine.name}
                       </span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-700 text-surface-400">
@@ -309,33 +309,44 @@ export function EngineManager({ onClose, isFirstLaunch = false }: Props) {
                           GPU
                         </span>
                       )}
+                      {engine.supports_cloning && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-700 text-surface-400">
+                          cloning
+                        </span>
+                      )}
+                      {engine.supports_emotions && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-700 text-surface-400">
+                          emotions
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs text-surface-400 mt-0.5">
                       {engine.description}
+                    </div>
+                    <div className="text-xs text-surface-500 mt-0.5">
+                      {engine.languages.join(", ")}
                     </div>
                     <div className="text-xs text-surface-500">
                       {engine.model_size_gb > 0 ? `${engine.model_size_gb} GB · ` : ""}
                       {engine.license}
                     </div>
                   </div>
-                  {engine.name !== "piper" && (
-                    engine.installed ? (
-                      <button
-                        onClick={() => handleUninstall(engine.name)}
-                        disabled={uninstallingEngine === engine.name || !!activeInstall}
-                        className="text-xs px-2 py-1 rounded bg-danger/10 text-danger hover:bg-danger/20 disabled:opacity-50 shrink-0"
-                      >
-                        {uninstallingEngine === engine.name ? "…" : "Uninstall"}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleInstall(engine.name)}
-                        disabled={!!activeInstall}
-                        className="text-xs px-2 py-1 rounded bg-accent/20 text-accent hover:bg-accent/30 disabled:opacity-50 shrink-0"
-                      >
-                        Install
-                      </button>
-                    )
+                  {engine.installed ? (
+                    <button
+                      onClick={() => handleUninstall(engine.name)}
+                      disabled={uninstallingEngine === engine.name || !!activeInstall}
+                      className="text-xs px-2 py-1 rounded bg-danger/10 text-danger hover:bg-danger/20 disabled:opacity-50 shrink-0"
+                    >
+                      {uninstallingEngine === engine.name ? "…" : "Uninstall"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleInstall(engine.name)}
+                      disabled={!!activeInstall}
+                      className="text-xs px-2 py-1 rounded bg-accent/20 text-accent hover:bg-accent/30 disabled:opacity-50 shrink-0"
+                    >
+                      Install
+                    </button>
                   )}
                 </div>
               ))}

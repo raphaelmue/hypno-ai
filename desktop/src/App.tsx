@@ -20,6 +20,7 @@ import {
 } from "./components";
 import type {
   AIGenerateParams,
+  EngineSpec,
   LintResult,
   ModelStatus,
   RenderProgress,
@@ -84,8 +85,9 @@ export default function App() {
   const [isRendering, setIsRendering] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Voices
+  // Voices & engines
   const [voices, setVoices] = useState<VoiceInfo[]>([]);
+  const [engineSpecs, setEngineSpecs] = useState<EngineSpec[]>([]);
   const [modelStatus, setModelStatus] = useState<ModelStatus | null>(null);
 
   // AI generation
@@ -158,6 +160,7 @@ export default function App() {
             setShowEngineManager(true);
           }
         }),
+        rpc.enginesList().then((r) => setEngineSpecs(r.engines)),
         rpc.enginesActive().then((r) => {
           setRenderSettings((prev) => ({ ...prev, engine: r.engine, voice: "" }));
         }),
@@ -475,7 +478,6 @@ export default function App() {
   // Render
   // ---------------------------------------------------------------------------
 
-  const engines = ["piper", "coqui", "kokoro", "styletts2", "f5tts", "bark"];
 
   if (isLoading) {
     return (
@@ -555,7 +557,7 @@ export default function App() {
               settings={renderSettings}
               onSettingsChange={handleSettingsChange}
               voices={voices}
-              engines={engines}
+              engines={engineSpecs}
               renderProgress={renderProgress}
               isRendering={isRendering}
               onRender={handleRender}
