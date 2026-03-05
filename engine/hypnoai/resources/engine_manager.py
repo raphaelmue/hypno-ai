@@ -20,6 +20,7 @@ Design notes
 from __future__ import annotations
 
 import importlib.util
+import os
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -248,15 +249,19 @@ def _run_pip(cmd: list[str], line_callback: LineCallback | None) -> None:
         # Stream directly to terminal — no capture.
         result = subprocess.run(cmd, check=False)
     else:
+        # PYTHONUNBUFFERED ensures pip flushes each line immediately even when
+        # writing to a pipe (which would otherwise be block-buffered).
+        env = {**os.environ, "PYTHONUNBUFFERED": "1"}
         proc = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
+            env=env,
         )
         assert proc.stdout is not None
-        for line in proc.stdout:
+        for line in iter(proc.stdout.readline, ""):
             line_callback(line.rstrip())
         proc.wait()
         result = proc

@@ -18,10 +18,22 @@ const __dirname = path.dirname(__filename);
 const sidecar = {
   process: null as ChildProcess | null,
   requestId: 0,
-  lineQueue: [] as Array<(line: string) => void>,
   ready: false,
   pendingReady: [] as Array<() => void>,
 };
+
+type CallHandler = { resolve: (v: unknown) => void; reject: (e: Error) => void };
+type StreamHandler = {
+  onChunk: (chunk: Record<string, unknown>) => void;
+  resolve: () => void;
+  reject: (e: Error) => void;
+};
+
+// ID-keyed maps replace the old FIFO lineQueue.
+// This prevents response mis-routing when multiple concurrent RPC calls or
+// a stream + a call are in-flight at the same time.
+const pendingCalls = new Map<number, CallHandler>();
+const pendingStreams = new Map<number, StreamHandler>();
 
 function findVenvPython(): string {
   let dir = __dirname;
@@ -61,19 +73,49 @@ function startSidecar(): void {
       console.warn('[sidecar] Unexpected line:', line);
       return;
     }
-    // Check for the ready notification (unsolicited, no id)
+    let parsed: { method?: string; id?: number; result?: unknown; error?: { code: number; message: string } };
     try {
-      const parsed = JSON.parse(line) as { method?: string };
-      if (parsed.method === 'sidecar.ready') {
-        sidecar.ready = true;
-        const pending = sidecar.pendingReady.splice(0);
-        pending.forEach(fn => fn());
+      parsed = JSON.parse(line);
+    } catch {
+      console.warn('[sidecar] Failed to parse line:', line);
+      return;
+    }
+    // Unsolicited ready notification
+    if (parsed.method === 'sidecar.ready') {
+      sidecar.ready = true;
+      sidecar.pendingReady.splice(0).forEach(fn => fn());
+      return;
+    }
+    const id = parsed.id;
+    if (id === undefined) {
+      console.warn('[sidecar] Response missing id:', line);
+      return;
+    }
+    // Route to the correct call or stream handler by id
+    const call = pendingCalls.get(id);
+    if (call) {
+      pendingCalls.delete(id);
+      if (parsed.error) call.reject(new Error(`[${parsed.error.code}] ${parsed.error.message}`));
+      else call.resolve(parsed.result);
+      return;
+    }
+    const stream = pendingStreams.get(id);
+    if (stream) {
+      if (parsed.error) {
+        pendingStreams.delete(id);
+        stream.reject(new Error(`[${parsed.error.code}] ${parsed.error.message}`));
         return;
       }
-    } catch { /* fall through to normal response handling */ }
-    const resolver = sidecar.lineQueue.shift();
-    if (resolver) resolver(line);
-    else console.warn('[sidecar] Unexpected line:', line);
+      if (parsed.result) {
+        stream.onChunk(parsed.result as Record<string, unknown>);
+        if ((parsed.result as Record<string, unknown>).done === true) {
+          pendingStreams.delete(id);
+          stream.resolve();
+        }
+      }
+      return;
+    }
+    console.warn('[sidecar] No handler for id:', id, line);
   });
 
   child.on('exit', (code) => {
@@ -82,13 +124,14 @@ function startSidecar(): void {
     // Unblock any IPC calls waiting for the ready signal (sidecar died before it was ready)
     if (!sidecar.ready) {
       sidecar.ready = true;
-      const pending = sidecar.pendingReady.splice(0);
-      pending.forEach(fn => fn());
+      sidecar.pendingReady.splice(0).forEach(fn => fn());
     }
-    // Reject any in-flight RPC calls
-    while (sidecar.lineQueue.length) {
-      sidecar.lineQueue.shift()!(JSON.stringify({ error: { code: -32000, message: 'Sidecar exited' } }));
-    }
+    // Reject all in-flight RPC calls and streams
+    const err = new Error('Sidecar exited');
+    for (const h of pendingCalls.values()) h.reject(err);
+    pendingCalls.clear();
+    for (const h of pendingStreams.values()) h.reject(err);
+    pendingStreams.clear();
   });
 }
 
@@ -104,35 +147,33 @@ function waitForReady(): Promise<void> {
 }
 
 // Single request → single response
-ipcMain.handle('rpc-call', async (_e, method: string, params: unknown) => {
-  if (!sidecar.process) throw new Error('Sidecar not running');
-  await waitForReady();
-  const id = nextId();
-  writeRequest(method, params, id);
-  const line = await new Promise<string>(resolve => { sidecar.lineQueue.push(resolve); });
-  const resp = JSON.parse(line) as { result?: unknown; error?: { code: number; message: string } };
-  if (resp.error) throw new Error(`[${resp.error.code}] ${resp.error.message}`);
-  return resp.result;
+ipcMain.handle('rpc-call', (_e, method: string, params: unknown) => {
+  if (!sidecar.process) return Promise.reject(new Error('Sidecar not running'));
+  return waitForReady().then(() => {
+    if (!sidecar.process) return Promise.reject(new Error('Sidecar not running'));
+    const id = nextId();
+    return new Promise<unknown>((resolve, reject) => {
+      pendingCalls.set(id, { resolve, reject });
+      writeRequest(method, params, id);
+    });
+  });
 });
 
 // Streaming request → chunks via webContents.send until done=true
-ipcMain.handle('rpc-stream', async (event, method: string, params: unknown, streamId: string) => {
-  if (!sidecar.process) throw new Error('Sidecar not running');
-  await waitForReady();
-  const id = nextId();
-  writeRequest(method, params, id);
-  while (true) {
-    const line = await new Promise<string>(resolve => { sidecar.lineQueue.push(resolve); });
-    const resp = JSON.parse(line) as { result?: Record<string, unknown>; error?: { code: number; message: string } };
-    if (resp.error) {
-      event.sender.send(streamId, { __error: true, message: `[${resp.error.code}] ${resp.error.message}` });
-      break;
-    }
-    if (resp.result) {
-      event.sender.send(streamId, resp.result);
-      if (resp.result.done === true) break;
-    }
-  }
+ipcMain.handle('rpc-stream', (event, method: string, params: unknown, streamId: string) => {
+  if (!sidecar.process) return Promise.reject(new Error('Sidecar not running'));
+  return waitForReady().then(() => {
+    if (!sidecar.process) return Promise.reject(new Error('Sidecar not running'));
+    const id = nextId();
+    return new Promise<void>((resolve, reject) => {
+      pendingStreams.set(id, {
+        onChunk: (chunk) => event.sender.send(streamId, chunk),
+        resolve,
+        reject,
+      });
+      writeRequest(method, params, id);
+    });
+  });
 });
 
 // Native file-open dialog

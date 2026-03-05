@@ -58,16 +58,20 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const [statusResult, enginesResult] = await Promise.all([
-        rpc.modelsStatus(),
-        rpc.enginesList(),
-      ]);
-      setStatus(statusResult);
+      // Load engine list first — it's fast and controls the loading spinner.
+      const enginesResult = await rpc.enginesList();
       setEngines(enginesResult.engines);
     } catch (e) {
       setError(`Failed to load: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setLoading(false);
+    }
+    // Load GPU/disk status independently — may be slow if torch is installed.
+    try {
+      const statusResult = await rpc.modelsStatus();
+      setStatus(statusResult);
+    } catch {
+      // Status is informational; swallow errors silently.
     }
   }, [rpc]);
 
@@ -175,7 +179,7 @@ export function ModelManager({ onClose, isFirstLaunch = false }: Props) {
       <div className="flex items-center justify-between px-4 py-3 border-b border-surface-700 bg-surface-900">
         <div>
           <h2 className="text-sm font-medium text-surface-200">
-            {isFirstLaunch ? "Welcome to HypnoAI — Setup" : "Model Manager"}
+            {isFirstLaunch ? "Welcome to HypnoAI — Setup" : "Engine Manager"}
           </h2>
           {isFirstLaunch && (
             <p className="text-xs text-surface-400 mt-0.5">

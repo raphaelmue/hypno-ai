@@ -301,10 +301,10 @@ export function Sidebar({
         />
       </div>
 
-      {/* Model quick-status */}
+      {/* Engine quick-status */}
       <div className="border-t border-surface-700 px-3 py-2">
         <div className="text-[10px] text-surface-500 uppercase tracking-wide mb-1">
-          Models
+          Engines
         </div>
         {modelStatus ? (
           <div className="text-xs text-surface-400 space-y-0.5">
