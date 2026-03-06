@@ -1,6 +1,7 @@
 """Session state: temp directory and job registry for the HypnoAI sidecar."""
 from __future__ import annotations
 
+import tempfile
 import threading
 import time
 import uuid
@@ -54,7 +55,7 @@ class DownloadJob:
 class SidecarSession:
     """Holds all mutable state for one sidecar process lifetime.
 
-    * Creates a session-scoped temp directory under ``/tmp/hypnoai-<id>/``.
+    * Creates a session-scoped temp directory under the system temp dir (``tempfile.gettempdir()``).
     * Owns render-job and download-job registries.
     * Thread-safe via an internal lock.
     """
@@ -64,7 +65,7 @@ class SidecarSession:
         if tmp_root is not None:
             self._tmp_root = Path(tmp_root)
         else:
-            self._tmp_root = Path(f"/tmp/hypnoai-{self._session_id}")
+            self._tmp_root = Path(tempfile.gettempdir()) / f"hypnoai-{self._session_id}"
         self._tmp_root.mkdir(parents=True, exist_ok=True)
         (self._tmp_root / "chunks").mkdir(exist_ok=True)
         (self._tmp_root / "output").mkdir(exist_ok=True)
