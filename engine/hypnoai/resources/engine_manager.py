@@ -88,7 +88,9 @@ def _ensure_managed_path() -> None:
     """Add the managed site-packages to sys.path (frozen-mode only).
 
     On Windows, also registers native DLL directories (e.g. ``torch/lib``)
-    via ``os.add_dll_directory`` so that ``LoadLibrary`` can resolve them.
+    via both ``os.add_dll_directory`` **and** the ``PATH`` environment
+    variable so that ``LoadLibrary`` can resolve transitive dependencies
+    regardless of how the DLL is loaded (Python import, ctypes, etc.).
     """
     if not getattr(sys, "frozen", False):
         return
@@ -96,20 +98,22 @@ def _ensure_managed_path() -> None:
     managed_str = str(managed)
     if managed_str not in sys.path:
         sys.path.insert(0, managed_str)
-    # On Windows, Python's sys.path only affects .py/.pyc imports.  Native
-    # extension modules (.pyd) that link against companion .dll files (e.g.
-    # torch/lib/torch_python.dll) need those directories registered at the
-    # OS level so LoadLibrary can find them.
     if sys.platform == "win32" and managed.exists():
+        dll_dirs: list[str] = []
         for pkg_dir in managed.iterdir():
             if not pkg_dir.is_dir():
                 continue
             for dll_dir in (pkg_dir / "lib", pkg_dir / "bin"):
                 if dll_dir.is_dir():
+                    dll_dirs.append(str(dll_dir))
                     try:
                         os.add_dll_directory(str(dll_dir))
                     except OSError:
                         pass
+        if dll_dirs:
+            os.environ["PATH"] = (
+                os.pathsep.join(dll_dirs) + os.pathsep + os.environ.get("PATH", "")
+            )
 
 
 def _get_managed_site_packages() -> Path:
@@ -256,10 +260,17 @@ def install(name: str, line_callback: LineCallback | None = None) -> None:
     python = _get_python()
     if getattr(sys, "frozen", False):
         managed = _get_managed_site_packages()
+        # The system Python running pip may be a different version than the
+        # Python bundled inside the PyInstaller sidecar.  Native wheels (.pyd,
+        # .dll) must match the *bundled* version, so we pass --python-version
+        # and --only-binary to force pip to fetch compatible wheels.
+        bundled_ver = f"{sys.version_info.major}.{sys.version_info.minor}"
         cmd = [
             python, "-u", "-m", "pip", "install",
             spec.pip_package, "--target", str(managed),
-            "--prefer-binary", "--no-warn-script-location",
+            "--python-version", bundled_ver,
+            "--only-binary=:all:",
+            "--no-warn-script-location",
         ]
     else:
         cmd = [
@@ -267,6 +278,9 @@ def install(name: str, line_callback: LineCallback | None = None) -> None:
             spec.pip_package, "--prefer-binary", "--no-warn-script-location",
         ]
     _run_pip(cmd, line_callback)
+    # After install, re-register DLL directories so newly installed native
+    # libraries are discoverable without restarting the sidecar.
+    _ensure_managed_path()
 
 
 def uninstall(name: str, line_callback: LineCallback | None = None) -> None:
