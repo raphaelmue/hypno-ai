@@ -60,7 +60,8 @@ function startSidecar(): void {
     command = findVenvPython();
     args = ['-m', 'hypnoai.sidecar'];
   } else {
-    command = path.join(process.resourcesPath, 'hypnoai-sidecar');
+    const exe = process.platform === 'win32' ? 'hypnoai-sidecar.exe' : 'hypnoai-sidecar';
+    command = path.join(process.resourcesPath, exe);
     args = [];
   }
 
