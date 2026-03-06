@@ -9,6 +9,7 @@ import { useRpc } from "../hooks/useRpc";
 interface Props {
   onClose?: () => void;
   isFirstLaunch?: boolean;
+  onEnginesChanged?: () => void;
 }
 
 interface ActiveDownload {
@@ -23,7 +24,7 @@ interface ActiveInstall {
   error: string | null;
 }
 
-export function EngineManager({ onClose, isFirstLaunch = false }: Props) {
+export function EngineManager({ onClose, isFirstLaunch = false, onEnginesChanged }: Props) {
   const rpc = useRpc();
   const [status, setStatus] = useState<ModelStatus | null>(null);
   const [engines, setEngines] = useState<EngineSpec[]>([]);
@@ -117,6 +118,7 @@ export function EngineManager({ onClose, isFirstLaunch = false }: Props) {
       });
       setActiveInstall(null);
       fetchData().then(() => fetchCatalog());
+      onEnginesChanged?.();
     } catch (e) {
       setActiveInstall((prev) =>
         prev ? { ...prev, error: String(e) } : null
@@ -134,6 +136,7 @@ export function EngineManager({ onClose, isFirstLaunch = false }: Props) {
     } finally {
       setUninstallingEngine(null);
       fetchData().then(() => fetchCatalog());
+      onEnginesChanged?.();
     }
   };
 

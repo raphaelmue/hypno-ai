@@ -198,10 +198,15 @@ export function useRpc() {
   );
 
   const enginesInstall = useCallback(
-    (engine: string, onLine: (line: string) => void): Promise<void> =>
-      rpcStream("engines.install", { engine }, (chunk) => {
+    (engine: string, onLine: (line: string) => void): Promise<void> => {
+      let installError: string | null = null;
+      return rpcStream("engines.install", { engine }, (chunk) => {
         if (chunk.line) onLine(chunk.line as string);
-      }),
+        if (chunk.done && chunk.error) installError = chunk.error as string;
+      }).then(() => {
+        if (installError) throw new Error(installError);
+      });
+    },
     []
   );
 

@@ -608,6 +608,9 @@ export default function App() {
                 setShowEngineManager(false);
                 setIsFirstLaunch(false);
               }}
+              onEnginesChanged={() => {
+                rpc.enginesList().then((r) => setEngineSpecs(r.engines)).catch(() => {});
+              }}
             />
           </div>
         </div>

@@ -214,12 +214,12 @@ def install(name: str, line_callback: LineCallback | None = None) -> None:
         cmd = [
             python, "-u", "-m", "pip", "install",
             spec.pip_package, "--target", str(managed),
-            "--no-warn-script-location",
+            "--prefer-binary", "--no-warn-script-location",
         ]
     else:
         cmd = [
             python, "-u", "-m", "pip", "install",
-            spec.pip_package, "--no-warn-script-location",
+            spec.pip_package, "--prefer-binary", "--no-warn-script-location",
         ]
     _run_pip(cmd, line_callback)
 

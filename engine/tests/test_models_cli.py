@@ -92,10 +92,11 @@ class TestEnginesInstall:
         assert result.exit_code == 0
         mock_pip.assert_called_once()
 
-    def test_frozen_env_exits_1(self, tmp_path):
+    def test_frozen_env_no_python_exits_1(self, tmp_path):
         import sys
         with patch(f"{_EM}.is_installed", return_value=False), \
-             patch.object(sys, "frozen", True, create=True):
+             patch.object(sys, "frozen", True, create=True), \
+             patch("shutil.which", return_value=None):
             result = runner.invoke(app, ["engines", "install", "kokoro"])
         assert result.exit_code == 1
 
