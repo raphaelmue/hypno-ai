@@ -85,12 +85,31 @@ class EngineSpec:
 # that engines installed at runtime (in frozen/packaged mode) are importable
 # throughout the sidecar process, not just during is_installed() checks.
 def _ensure_managed_path() -> None:
-    """Add the managed site-packages to sys.path (frozen-mode only)."""
+    """Add the managed site-packages to sys.path (frozen-mode only).
+
+    On Windows, also registers native DLL directories (e.g. ``torch/lib``)
+    via ``os.add_dll_directory`` so that ``LoadLibrary`` can resolve them.
+    """
     if not getattr(sys, "frozen", False):
         return
-    managed = str(_get_managed_site_packages())
-    if managed not in sys.path:
-        sys.path.insert(0, managed)
+    managed = _get_managed_site_packages()
+    managed_str = str(managed)
+    if managed_str not in sys.path:
+        sys.path.insert(0, managed_str)
+    # On Windows, Python's sys.path only affects .py/.pyc imports.  Native
+    # extension modules (.pyd) that link against companion .dll files (e.g.
+    # torch/lib/torch_python.dll) need those directories registered at the
+    # OS level so LoadLibrary can find them.
+    if sys.platform == "win32" and managed.exists():
+        for pkg_dir in managed.iterdir():
+            if not pkg_dir.is_dir():
+                continue
+            for dll_dir in (pkg_dir / "lib", pkg_dir / "bin"):
+                if dll_dir.is_dir():
+                    try:
+                        os.add_dll_directory(str(dll_dir))
+                    except OSError:
+                        pass
 
 
 def _get_managed_site_packages() -> Path:
