@@ -21,9 +21,11 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Callable
 
 LineCallback = Callable[[str], None]
@@ -178,10 +180,12 @@ def is_installed(name: str) -> bool:
 
     Uses ``importlib.util.find_spec`` which checks the filesystem without
     executing any package code — safe even for large ML libraries.
+    In frozen (packaged) mode, also checks the managed site-packages directory.
     """
     spec = ENGINES.get(name)
     if spec is None:
         return False
+    _ensure_managed_path()
     # Invalidate Python's import caches so that packages removed by pip
     # (or freshly installed) are reflected immediately without a restart.
     importlib.invalidate_caches()
@@ -201,15 +205,22 @@ def install(name: str, line_callback: LineCallback | None = None) -> None:
     Raises:
         KeyError: If *name* is not a known engine.
         RuntimeError: If pip exits with a non-zero return code.
-        EnvironmentError: If called inside a frozen PyInstaller bundle
-            where pip is not available.
+        EnvironmentError: If no Python interpreter can be found (frozen mode).
     """
     spec = ENGINES[name]  # propagate KeyError for unknown engines
-    _check_not_frozen()
-    cmd = [
-        sys.executable, "-u", "-m", "pip", "install",
-        spec.pip_package, "--no-warn-script-location",
-    ]
+    python = _get_python()
+    if getattr(sys, "frozen", False):
+        managed = _get_managed_site_packages()
+        cmd = [
+            python, "-u", "-m", "pip", "install",
+            spec.pip_package, "--target", str(managed),
+            "--no-warn-script-location",
+        ]
+    else:
+        cmd = [
+            python, "-u", "-m", "pip", "install",
+            spec.pip_package, "--no-warn-script-location",
+        ]
     _run_pip(cmd, line_callback)
 
 
@@ -223,11 +234,26 @@ def uninstall(name: str, line_callback: LineCallback | None = None) -> None:
     Raises:
         KeyError: If *name* is not a known engine.
         RuntimeError: If pip exits with a non-zero return code.
-        EnvironmentError: If called inside a frozen PyInstaller bundle.
+        EnvironmentError: If no Python interpreter can be found (frozen mode).
     """
     spec = ENGINES[name]  # propagate KeyError for unknown engines
-    _check_not_frozen()
-    cmd = [sys.executable, "-u", "-m", "pip", "uninstall", spec.pip_package, "-y"]
+    if getattr(sys, "frozen", False):
+        # pip uninstall doesn't support --target; remove from managed dir directly
+        managed = _get_managed_site_packages()
+        import_name = spec.import_name
+        for item in managed.iterdir():
+            if item.name == import_name or item.name.startswith(f"{import_name}-"):
+                if item.is_dir():
+                    shutil.rmtree(item)
+                else:
+                    item.unlink()
+        # Also remove .dist-info directories
+        for item in managed.iterdir():
+            if item.name.endswith(".dist-info") and spec.pip_package.replace("-", "_") in item.name.lower():
+                shutil.rmtree(item)
+        return
+    python = _get_python()
+    cmd = [python, "-u", "-m", "pip", "uninstall", spec.pip_package, "-y"]
     _run_pip(cmd, line_callback)
 
 
@@ -236,14 +262,46 @@ def uninstall(name: str, line_callback: LineCallback | None = None) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _check_not_frozen() -> None:
-    """Raise EnvironmentError when running inside a PyInstaller bundle."""
-    if getattr(sys, "frozen", False):
-        raise EnvironmentError(
-            "Engine installation is not available in the packaged app binary. "
-            "Use the app's built-in engine installer which manages a separate "
-            "Python environment."
-        )
+def _get_managed_site_packages() -> Path:
+    """Return the managed site-packages dir for runtime engine installs."""
+    if sys.platform == "win32":
+        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+    managed = base / "hypnoai" / "site-packages"
+    managed.mkdir(parents=True, exist_ok=True)
+    return managed
+
+
+def _ensure_managed_path() -> None:
+    """Add the managed site-packages to sys.path so find_spec can discover
+    engines installed at runtime in the packaged app."""
+    if not getattr(sys, "frozen", False):
+        return
+    managed = str(_get_managed_site_packages())
+    if managed not in sys.path:
+        sys.path.insert(0, managed)
+
+
+def _get_python() -> str:
+    """Return the Python interpreter to use for pip commands.
+
+    In development (non-frozen), returns ``sys.executable``.
+    In a frozen PyInstaller bundle, finds a system Python on PATH.
+    """
+    if not getattr(sys, "frozen", False):
+        return sys.executable
+    frozen_exe = os.path.abspath(sys.executable)
+    for name in ("python3", "python"):
+        found = shutil.which(name)
+        if found and os.path.abspath(found) != frozen_exe:
+            return found
+    raise EnvironmentError(
+        "No system Python found. Please install Python 3.11+ and "
+        "ensure it is on your PATH."
+    )
 
 
 def _run_pip(cmd: list[str], line_callback: LineCallback | None) -> None:

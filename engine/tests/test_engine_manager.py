@@ -10,7 +10,7 @@ import pytest
 from hypnoai.resources.engine_manager import (
     ENGINES,
     EngineSpec,
-    _check_not_frozen,
+    _get_python,
     _run_pip,
     install,
     is_installed,
@@ -101,10 +101,21 @@ class TestInstall:
         with pytest.raises(KeyError):
             install("totally_unknown")
 
-    def test_raises_environment_error_when_frozen(self, monkeypatch):
+    def test_frozen_uses_system_python(self, monkeypatch):
         monkeypatch.setattr(sys, "frozen", True, raising=False)
-        with pytest.raises(EnvironmentError, match="packaged app"):
-            install("bark")
+        with patch("shutil.which", return_value="/usr/bin/python3"), \
+             patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            install("kokoro")
+        cmd = mock_run.call_args[0][0]
+        assert "/usr/bin/python3" in cmd
+        assert "--target" in cmd
+
+    def test_frozen_raises_when_no_system_python(self, monkeypatch):
+        monkeypatch.setattr(sys, "frozen", True, raising=False)
+        with patch("shutil.which", return_value=None):
+            with pytest.raises(EnvironmentError, match="No system Python"):
+                install("bark")
 
     def test_runs_pip_install_without_callback(self, monkeypatch):
         monkeypatch.delattr(sys, "frozen", raising=False)
@@ -157,16 +168,22 @@ class TestUninstall:
 
 
 # ---------------------------------------------------------------------------
-# _check_not_frozen
+# _get_python
 # ---------------------------------------------------------------------------
 
 
-class TestCheckNotFrozen:
-    def test_raises_when_frozen(self, monkeypatch):
-        monkeypatch.setattr(sys, "frozen", True, raising=False)
-        with pytest.raises(EnvironmentError):
-            _check_not_frozen()
-
-    def test_passes_when_not_frozen(self, monkeypatch):
+class TestGetPython:
+    def test_returns_sys_executable_when_not_frozen(self, monkeypatch):
         monkeypatch.delattr(sys, "frozen", raising=False)
-        _check_not_frozen()  # should not raise
+        assert _get_python() == sys.executable
+
+    def test_finds_system_python_when_frozen(self, monkeypatch):
+        monkeypatch.setattr(sys, "frozen", True, raising=False)
+        with patch("shutil.which", return_value="/usr/bin/python3"):
+            assert _get_python() == "/usr/bin/python3"
+
+    def test_raises_when_frozen_and_no_python(self, monkeypatch):
+        monkeypatch.setattr(sys, "frozen", True, raising=False)
+        with patch("shutil.which", return_value=None):
+            with pytest.raises(EnvironmentError, match="No system Python"):
+                _get_python()
