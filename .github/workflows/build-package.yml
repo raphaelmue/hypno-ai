@@ -2,7 +2,7 @@ name: Build and Package
 
 on:
   push:
-    branches: [ main, new-stack ]
+    branches: [ main ]
     tags:
       - 'v*'
   pull_request:
@@ -51,7 +51,9 @@ jobs:
         cache: 'pip'
 
     - name: Enable Corepack (Yarn 4)
-      run: corepack enable
+      run: |
+        npm uninstall -g yarn || true
+        corepack enable
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
