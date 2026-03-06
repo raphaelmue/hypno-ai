@@ -20,6 +20,7 @@ const sidecar = {
   requestId: 0,
   ready: false,
   pendingReady: [] as Array<() => void>,
+  exitError: '' as string,
 };
 
 type CallHandler = { resolve: (v: unknown) => void; reject: (e: Error) => void };
@@ -52,6 +53,9 @@ function findVenvPython(): string {
   return 'python';
 }
 
+// Collect recent stderr lines so we can surface them in error messages.
+let sidecarStderr: string[] = [];
+
 function startSidecar(): void {
   const isDev = !app.isPackaged;
   let command: string, args: string[];
@@ -65,15 +69,26 @@ function startSidecar(): void {
     args = [];
   }
 
+  console.log('[sidecar] spawning:', command, args.join(' '));
+
   const child = spawn(command, args, {
     stdio: ['pipe', 'pipe', 'pipe'],
     windowsHide: true,
   });
   sidecar.process = child;
 
+  child.on('error', (err) => {
+    console.error('[sidecar] spawn error:', err.message);
+    sidecarStderr.push(err.message);
+  });
+
   child.stderr?.on('data', (data: Buffer) => {
     const text = data.toString().trimEnd();
-    if (text) console.error('[sidecar]', text);
+    if (text) {
+      console.error('[sidecar]', text);
+      sidecarStderr.push(text);
+      if (sidecarStderr.length > 50) sidecarStderr.shift();
+    }
   });
 
   const rl = readline.createInterface({ input: child.stdout!, crlfDelay: Infinity });
@@ -128,15 +143,17 @@ function startSidecar(): void {
   });
 
   child.on('exit', (code) => {
-    console.log('[sidecar] exited with code:', code);
+    const detail = sidecarStderr.length > 0 ? '\n' + sidecarStderr.join('\n') : '';
+    console.error(`[sidecar] exited with code ${code}${detail}`);
     sidecar.process = null;
+    sidecar.exitError = `Sidecar exited (code ${code})${detail}`;
     // Unblock any IPC calls waiting for the ready signal (sidecar died before it was ready)
     if (!sidecar.ready) {
       sidecar.ready = true;
       sidecar.pendingReady.splice(0).forEach(fn => fn());
     }
     // Reject all in-flight RPC calls and streams
-    const err = new Error('Sidecar exited');
+    const err = new Error(sidecar.exitError);
     for (const h of pendingCalls.values()) h.reject(err);
     pendingCalls.clear();
     for (const h of pendingStreams.values()) h.reject(err);
@@ -157,9 +174,9 @@ function waitForReady(): Promise<void> {
 
 // Single request → single response
 ipcMain.handle('rpc-call', (_e, method: string, params: unknown) => {
-  if (!sidecar.process) return Promise.reject(new Error('Sidecar not running'));
+  if (!sidecar.process) return Promise.reject(new Error(sidecar.exitError || 'Sidecar not running'));
   return waitForReady().then(() => {
-    if (!sidecar.process) return Promise.reject(new Error('Sidecar not running'));
+    if (!sidecar.process) return Promise.reject(new Error(sidecar.exitError || 'Sidecar not running'));
     const id = nextId();
     return new Promise<unknown>((resolve, reject) => {
       pendingCalls.set(id, { resolve, reject });
@@ -170,9 +187,9 @@ ipcMain.handle('rpc-call', (_e, method: string, params: unknown) => {
 
 // Streaming request → chunks via webContents.send until done=true
 ipcMain.handle('rpc-stream', (event, method: string, params: unknown, streamId: string) => {
-  if (!sidecar.process) return Promise.reject(new Error('Sidecar not running'));
+  if (!sidecar.process) return Promise.reject(new Error(sidecar.exitError || 'Sidecar not running'));
   return waitForReady().then(() => {
-    if (!sidecar.process) return Promise.reject(new Error('Sidecar not running'));
+    if (!sidecar.process) return Promise.reject(new Error(sidecar.exitError || 'Sidecar not running'));
     const id = nextId();
     return new Promise<void>((resolve, reject) => {
       pendingStreams.set(id, {
