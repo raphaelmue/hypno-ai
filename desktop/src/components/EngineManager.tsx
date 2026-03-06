@@ -334,14 +334,16 @@ export function EngineManager({ onClose, isFirstLaunch = false, onEnginesChanged
                       {engine.license}
                     </div>
                   </div>
-                  {engine.name !== "piper" && (engine.installed ? (
-                    <button
-                      onClick={() => handleUninstall(engine.name)}
-                      disabled={uninstallingEngine === engine.name || !!activeInstall}
-                      className="text-xs px-2 py-1 rounded bg-danger/10 text-danger hover:bg-danger/20 disabled:opacity-50 shrink-0"
-                    >
-                      {uninstallingEngine === engine.name ? "…" : "Uninstall"}
-                    </button>
+                  {engine.installed ? (
+                    engine.name !== "piper" && (
+                      <button
+                        onClick={() => handleUninstall(engine.name)}
+                        disabled={uninstallingEngine === engine.name || !!activeInstall}
+                        className="text-xs px-2 py-1 rounded bg-danger/10 text-danger hover:bg-danger/20 disabled:opacity-50 shrink-0"
+                      >
+                        {uninstallingEngine === engine.name ? "…" : "Uninstall"}
+                      </button>
+                    )
                   ) : (
                     <button
                       onClick={() => handleInstall(engine.name)}
@@ -350,7 +352,7 @@ export function EngineManager({ onClose, isFirstLaunch = false, onEnginesChanged
                     >
                       Install
                     </button>
-                  ))}
+                  )}
                 </div>
               ))}
             </div>

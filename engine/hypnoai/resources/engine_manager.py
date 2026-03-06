@@ -81,6 +81,33 @@ class EngineSpec:
 # Engine registry — single source of truth
 # ---------------------------------------------------------------------------
 
+# Ensure the managed site-packages directory is on sys.path at import time so
+# that engines installed at runtime (in frozen/packaged mode) are importable
+# throughout the sidecar process, not just during is_installed() checks.
+def _ensure_managed_path() -> None:
+    """Add the managed site-packages to sys.path (frozen-mode only)."""
+    if not getattr(sys, "frozen", False):
+        return
+    managed = str(_get_managed_site_packages())
+    if managed not in sys.path:
+        sys.path.insert(0, managed)
+
+
+def _get_managed_site_packages() -> Path:
+    """Return the managed site-packages dir for runtime engine installs."""
+    if sys.platform == "win32":
+        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+    managed = base / "hypnoai" / "site-packages"
+    managed.mkdir(parents=True, exist_ok=True)
+    return managed
+
+
+_ensure_managed_path()
+
 ENGINES: dict[str, EngineSpec] = {
     "piper": EngineSpec(
         name="piper",
@@ -185,7 +212,6 @@ def is_installed(name: str) -> bool:
     spec = ENGINES.get(name)
     if spec is None:
         return False
-    _ensure_managed_path()
     # Invalidate Python's import caches so that packages removed by pip
     # (or freshly installed) are reflected immediately without a restart.
     importlib.invalidate_caches()
@@ -260,29 +286,6 @@ def uninstall(name: str, line_callback: LineCallback | None = None) -> None:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
-
-
-def _get_managed_site_packages() -> Path:
-    """Return the managed site-packages dir for runtime engine installs."""
-    if sys.platform == "win32":
-        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
-    elif sys.platform == "darwin":
-        base = Path.home() / "Library" / "Application Support"
-    else:
-        base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
-    managed = base / "hypnoai" / "site-packages"
-    managed.mkdir(parents=True, exist_ok=True)
-    return managed
-
-
-def _ensure_managed_path() -> None:
-    """Add the managed site-packages to sys.path so find_spec can discover
-    engines installed at runtime in the packaged app."""
-    if not getattr(sys, "frozen", False):
-        return
-    managed = str(_get_managed_site_packages())
-    if managed not in sys.path:
-        sys.path.insert(0, managed)
 
 
 def _get_python() -> str:
