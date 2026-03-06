@@ -65,8 +65,16 @@ function startSidecar(): void {
     args = [];
   }
 
-  const child = spawn(command, args, { stdio: ['pipe', 'pipe', 'inherit'] });
+  const child = spawn(command, args, {
+    stdio: ['pipe', 'pipe', 'pipe'],
+    windowsHide: true,
+  });
   sidecar.process = child;
+
+  child.stderr?.on('data', (data: Buffer) => {
+    const text = data.toString().trimEnd();
+    if (text) console.error('[sidecar]', text);
+  });
 
   const rl = readline.createInterface({ input: child.stdout!, crlfDelay: Infinity });
   rl.on('line', (line) => {
