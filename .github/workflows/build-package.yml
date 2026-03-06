@@ -152,6 +152,7 @@ jobs:
 
     - name: List release artifacts
       working-directory: desktop/release
+      shell: bash
       run: ls -lah
 
   # Create GitHub release on tags
