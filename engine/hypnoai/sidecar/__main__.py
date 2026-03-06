@@ -2,7 +2,7 @@ import sys
 import traceback
 
 try:
-    from . import main
+    from hypnoai.sidecar import main
     main()
 except Exception:
     traceback.print_exc(file=sys.stderr)
