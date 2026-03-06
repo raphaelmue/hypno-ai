@@ -2,6 +2,12 @@
   "name": "hypnoai-desktop",
   "version": "0.1.0",
   "private": true,
+  "description": "AI-powered local TTS engine for hypnosis and meditation scripts",
+  "homepage": "https://github.com/raphaelmue/hypno-ai",
+  "author": {
+    "name": "HypnoAI",
+    "email": "info@hypnoai.app"
+  },
   "type": "module",
   "main": "dist-electron/main.js",
   "packageManager": "yarn@4.12.0",
