@@ -61,7 +61,7 @@ function startSidecar(): void {
     args = ['-m', 'hypnoai.sidecar'];
   } else {
     const exe = process.platform === 'win32' ? 'hypnoai-sidecar.exe' : 'hypnoai-sidecar';
-    command = path.join(process.resourcesPath, exe);
+    command = path.join(process.resourcesPath, 'hypnoai-sidecar', exe);
     args = [];
   }
 
