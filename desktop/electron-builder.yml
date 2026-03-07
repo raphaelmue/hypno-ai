@@ -1,0 +1,108 @@
+appId: ai.hypnoai.app
+productName: HypnoAI
+copyright: Copyright © 2026
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - package.json
+  # Only include minimal runtime node_modules (electron-builder handles this automatically)
+  - "!node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}"
+  - "!node_modules/**/{test,__tests__,tests,powered-test,example,examples}"
+  - "!node_modules/**/*.d.ts"
+  - "!node_modules/.bin"
+  - "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}"
+  - "!.editorconfig"
+  - "!**/._*"
+  - "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}"
+  - "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vscode,.nyc_output}"
+  - "!**/{appveyor.yml,.travis.yml,circle.yml}"
+  - "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+directories:
+  output: release
+  buildResources: build
+asarUnpack:
+  - "**/*.node"
+extraResources:
+  # Python sidecar executable
+  # The build script should place the platform-specific build here
+  # Build creates: dist/hypnoai-sidecar-{platform}-{arch}/ for CI
+  # For local builds, we'll use a symlink or copy to dist/hypnoai-sidecar/
+  - from: "../dist/hypnoai-sidecar"
+    to: "hypnoai-sidecar"
+    filter:
+      - "**/*"
+  # Include voices directory (Piper models, clone samples, etc.)
+  - from: "../engine/voices"
+    to: "voices"
+    filter:
+      - "**/*.onnx"
+      - "**/*.onnx.json"
+      - "**/*.wav"
+  # Include AI templates
+  - from: "../engine/hypnoai/ai/templates"
+    to: "templates"
+    filter:
+      - "**/*.toml"
+
+mac:
+  category: public.app-category.utilities
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+  icon: build/icon.icns
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+
+linux:
+  category: AudioVideo
+  target:
+    - target: AppImage
+      arch:
+        - x64
+        - arm64
+    - target: deb
+      arch:
+        - x64
+        - arm64
+    - target: rpm
+      arch:
+        - x64
+        - arm64
+  icon: build/icon.png
+  executableName: hypnoai
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+        - arm64
+    - target: portable
+      arch:
+        - x64
+  icon: build/icon.ico
+  publisherName: HypnoAI
+  verifyUpdateCodeSignature: false
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: HypnoAI
+  perMachine: false
+
+dmg:
+  writeUpdateInfo: false
+  sign: false
+
+publish: null  # Disable auto-publish, we'll handle releases manually
+

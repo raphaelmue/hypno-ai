@@ -1,135 +1,220 @@
-# Hypnosis Audio Generator
+# HypnoAI
 
-A desktop application that generates hypnosis audio from text using XTTS-v2 text-to-speech technology.
+> AI-powered local text-to-speech engine for hypnosis & meditation scripts.
+
+Write a script, pick a voice, and render a professional-quality audio session — entirely on your own machine. Optionally let an AI draft the script for you.
+
+---
 
 ## Features
 
-- Generate hypnosis audio from text prompts
-- Name and save your hypnosis routines
-- View a list of all saved routines
-- Load and regenerate existing routines
-- Select from multiple languages
-- Use sample voices or upload your own reference voice
-- Play and save generated audio files
-- Cross-platform support (Windows, macOS, Linux)
+- **HypnoScript markup** — a lightweight script language with directives for pauses, voice changes, speed control, and section labelling
+- **Six TTS engines** — Piper (CPU, fast), Coqui XTTS v2, Kokoro, StyleTTS2, F5-TTS, Bark
+- **Voice cloning** — supply a reference WAV and clone any voice with Coqui, F5-TTS, or StyleTTS2
+- **AI script generation** — prompt templates for relaxation, sleep, focus, habit change, and anxiety; works with Ollama (local), OpenAI, or Anthropic
+- **Audio post-processing** — loudness normalisation, per-section speed/pitch control, true-peak limiting
+- **Desktop GUI** — Tauri v2 + React; script editor with pacing heatmap, AI assistant, model manager, variables panel
+- **CLI** — full feature access without the GUI
+- **Privacy-first** — all TTS runs locally; cloud LLM is opt-in
 
-## Requirements
+---
 
-- Python 3.8+
-- PyTorch
-- TTS (Text-to-Speech) library with XTTS-v2 support
-- PyQt6 for the desktop UI
+## HypnoScript Quick Reference
+
+```
+@{section: Induction}
+
+Allow yourself to relax. Breathe slowly and deeply.
+
+@{pause: 3s}
+
+@{voice: narrator}
+@{speed: 0.85}
+
+Every breath takes you deeper into calm.
+
+@{section: Emergence}
+
+Slowly returning now. Wide awake.
+```
+
+Variables are injected at render time:
+
+```
+Welcome, {{name}}. Today we focus on {{goal}}.
+```
+
+---
 
 ## Installation
 
-1. Clone this repository:
-   ```
-   git clone https://github.com/raphaelmue/hypno-ai.git
-   cd hypno-ai
-   ```
+Requires Python 3.11+ and (optionally) Node.js 20+ / yarn 4 for the desktop app.
 
-2. Create a virtual environment and activate it:
-   ```
-   python -m venv .venv
-   # On Windows
-   .venv\Scripts\activate
-   # On macOS/Linux
-   source .venv/bin/activate
-   ```
+```bash
+git clone https://github.com/your-org/hypno-ai
+cd hypno-ai
+python -m venv .venv && source .venv/bin/activate
 
-3. Install the required packages:
-   ```
-   pip install -r requirements.txt
-   ```
+# Core CLI
+pip install -e .
 
-4. Add sample voice files:
-   - Place WAV files in the `app/static/voices` directory
-   - Rename them to match the sample voice IDs in `app/config.py` (e.g., `male1.wav`, `female1.wav`)
-
-## Usage
-
-### Running the Application
-
-1. Start the desktop application:
-   ```
-   python main.py
-   ```
-
-2. The application window will open, showing the list of saved routines.
-
-3. Click "Create New Routine" to create a new hypnosis routine.
-
-4. Enter your hypnosis script, select a language, and choose a voice.
-
-5. Click "Generate Hypnosis Audio" and wait for the processing to complete.
-
-6. Once complete, you can play the audio or save it to your device.
-
-### Building Standalone Executables
-
-You can build standalone executables for Windows, macOS, and Linux using PyInstaller:
-
-#### Windows
-
-```
-pyinstaller hypno-ai.spec
+# Add the TTS engine(s) you want
+pip install -e ".[piper]"        # CPU-only, fast, recommended for first run
+pip install -e ".[kokoro]"       # High-quality, GPU optional
+pip install -e ".[coqui]"        # Voice cloning, needs CUDA
+pip install -e ".[f5tts]"        # Voice cloning
+pip install -e ".[styletts]"     # Voice cloning
+pip install -e ".[bark]"         # Expressive/multilingual
 ```
 
-The executable will be created in the `dist/Hypno-AI` directory.
+---
 
-#### macOS
+## CLI Usage
 
-```
-pyinstaller hypno-ai.spec
-```
+### Render a script
 
-The application bundle will be created as `dist/Hypno-AI.app`.
-
-#### Linux
-
-```
-pyinstaller hypno-ai.spec
+```bash
+hypnoai render script.hypno --engine piper --voice en_US-amy-medium --output session.wav
 ```
 
-The executable will be created in the `dist/Hypno-AI` directory.
+### Lint a script
 
-## Development
+```bash
+hypnoai lint script.hypno
+```
 
-### Testing
+### Generate a script with AI
 
-The project includes a comprehensive test suite using pytest. To run the tests:
+```bash
+# requires a running Ollama instance, or set openai_api_key / anthropic_api_key in hypnoai.toml
+hypnoai generate --template relaxation --theme "deep sleep" --duration 20 --output sleep.hypno
+```
 
-1. Install the testing dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+### Manage voices (Piper)
 
-2. Run the tests:
-   ```
-   pytest
-   ```
+```bash
+hypnoai voices list --available          # browse downloadable voices
+hypnoai voices add en_US-ryan-medium     # download a voice
+hypnoai voices list                      # show installed voices
+```
 
-3. Run the tests with coverage reporting:
-   ```
-   pytest --cov=app --cov-report=term
-   ```
+### Manage models (GPU engines)
 
-For more detailed information about testing, including how to write new tests and the testing approach, see [TESTING.md](TESTING.md).
+```bash
+hypnoai models list --available          # list supported GPU engines
+hypnoai models download kokoro           # install via pip (shows command)
+```
 
-### Continuous Integration
+---
 
-The project uses GitHub Actions for continuous integration:
+## Desktop App
 
-- **Run Tests**: Runs the tests and reports coverage on every push to main and pull request
-- **Build Desktop Application**: Builds the desktop application for Windows, macOS, and Linux
+The desktop app is an Electron-based GUI with a Python sidecar process.
 
-## Notes on XTTS-v2
+### Quick Start (Development)
 
-XTTS-v2 is a multilingual text-to-speech model that can clone voices from short audio samples. For best results:
+```bash
+# Install Python dependencies
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -e ".[dev,piper,pitch]"
 
-- Use clear, high-quality audio samples for voice reference
-- Keep samples between 5-10 seconds in length
-- Ensure the reference voice is speaking clearly without background noise
+# Install desktop dependencies
+cd desktop
+corepack enable
+yarn install
+
+# Run in development mode
+yarn dev
+```
+
+### Building for Distribution
+
+See [docs/PACKAGING.md](docs/PACKAGING.md) for detailed packaging instructions.
+
+**Quick build (all platforms):**
+
+```bash
+# Unix (macOS/Linux)
+./scripts/build.sh
+
+# Windows
+scripts\build.bat
+```
+
+The packaged application will be in `desktop/release/`.
+
+**Platform-specific builds:**
+
+```bash
+cd desktop
+yarn build:dist:win      # Windows
+yarn build:dist:mac      # macOS
+yarn build:dist:linux    # Linux
+```
+
+### Pre-built Binaries
+
+Download pre-built packages from the [Releases](https://github.com/your-org/hypno-ai/releases) page:
+
+- **Windows**: `.exe` installer or portable
+- **macOS**: `.dmg` disk image
+- **Linux**: `.AppImage`, `.deb`, or `.rpm`
+
+---
+
+## Configuration
+
+On first run HypnoAI looks for `~/.config/hypnoai/hypnoai.toml`. Override with `--config`:
+
+```toml
+voices_dir       = "/home/user/.local/share/hypnoai/voices"
+default_engine   = "piper"
+default_voice    = "en_US-amy-medium"
+llm_provider     = "ollama"         # ollama | openai | anthropic
+# openai_api_key   = "sk-..."
+# anthropic_api_key = "sk-ant-..."
+```
+
+---
+
+## Running the Tests
+
+```bash
+source .venv/bin/activate
+python -m pytest
+```
+
+---
+
+## Project Structure
+
+```
+hypno-ai/
+├── engine/
+│   ├── hypnoai/          # Python package
+│   │   ├── parser/       # HypnoScript lexer + AST
+│   │   ├── tts/          # TTS engine adapters
+│   │   ├── render/       # Parallel render pipeline
+│   │   ├── audio/        # Post-processing (normalise, limit)
+│   │   ├── ai/           # LLM providers + script templates
+│   │   ├── resources/    # Model & voice managers
+│   │   ├── sidecar/      # JSON-RPC bridge for the desktop app
+│   │   └── cli.py        # Typer CLI entrypoint
+│   └── tests/
+├── desktop/              # Electron + React frontend
+│   ├── src/              # React components & hooks
+│   ├── electron/         # Electron main & preload
+│   └── build/            # Build resources (icons, etc.)
+├── scripts/              # Build scripts
+│   ├── build.sh          # Unix build script
+│   └── build.bat         # Windows build script
+├── docs/
+│   └── PACKAGING.md      # Detailed packaging guide
+└── hypnoai-sidecar.spec  # PyInstaller spec for sidecar
+```
+
+---
 
 ## License
 

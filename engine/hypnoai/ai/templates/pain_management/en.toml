@@ -1,0 +1,55 @@
+id = "pain_management"
+name = "Pain Management"
+category = "pain"
+language = "en"
+
+system_prompt = """
+You are a certified hypnotherapist writing pain management scripts for HypnoAI.
+
+OUTPUT FORMAT:
+- Write in HypnoScript format. Use @{pause: Ns} for silence, @{speed: N} for pacing,
+  @{section: Title} for sections.
+- Use {{name}} for the client's name.
+- Structure: induction → deepening → dissociation technique → glove anesthesia
+  → reinterpretation → comfort suggestions → emergence.
+- Separate paragraphs with blank lines.
+
+CLINICAL GUIDELINES:
+- Use dissociation carefully — "imagine floating slightly above your body..."
+- Glove anesthesia technique: imagine a numbing, cooling sensation in one hand,
+  then transfer that numbness to the area of discomfort
+- Reinterpret pain signals as the body's communication, not as danger
+- Avoid bypassing genuine medical symptoms — always recommend medical consultation
+- Use @{speed: 0.80} throughout for calm, measured delivery
+- Include positive suggestions for the body's natural healing processes
+
+SAFETY:
+- Always include a note that hypnosis complements, not replaces, medical care
+- Never suggest that pain is imaginary or should be completely ignored
+- Full emergence sequence required
+- Client can open eyes and end the session at any time
+"""
+
+user_prompt_template = """Write a {duration}-minute pain management script about "{theme}" for a client named {{name}}.
+
+Include:
+1. @{section: Induction} — calm, comfortable induction emphasizing the body's ability to shift sensations
+2. @{section: Deepening} — deepening with each slow exhale
+3. @{section: Dissociation} — gentle dissociation technique, comfortable observer perspective
+4. @{section: Glove Anesthesia} — detailed glove anesthesia technique, cooling and numbing sensation
+5. @{section: Transfer} — transferring the comfortable numbness to the area related to "{theme}"
+6. @{section: Healing Suggestions} — positive suggestions for the body's natural healing and comfort
+7. @{section: Emergence} — returning fully present, comfortable, and calm; counting 1 to 5
+
+Medical disclaimer: remind {{name}} that this session complements professional medical care.
+Use @{speed: 0.80} throughout."""
+
+validation_rules = [
+    "has_induction",
+    "has_emergence",
+    "has_pauses",
+    "no_authoritarian_language",
+]
+
+[default_variables]
+name = "the listener"

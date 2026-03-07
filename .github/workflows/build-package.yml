@@ -1,0 +1,191 @@
+name: Build and Package
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows builds
+          - os: windows-latest
+            platform: win
+            arch: x64
+            python-version: '3.11'
+
+          # macOS builds
+          - os: macos-latest
+            platform: mac
+            arch: x64
+            python-version: '3.11'
+
+          - os: macos-14  # Apple Silicon runner
+            platform: mac
+            arch: arm64
+            python-version: '3.11'
+
+          # Linux builds
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+            python-version: '3.11'
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: Enable Corepack (Yarn 4)
+      run: |
+        npm uninstall -g yarn || true
+        corepack enable
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Cache desktop node_modules
+      uses: actions/cache@v4
+      with:
+        path: desktop/node_modules
+        key: ${{ runner.os }}-yarn-${{ hashFiles('desktop/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-yarn-
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev,piper,pitch]"
+
+    - name: Build Python sidecar with PyInstaller
+      run: |
+        pyinstaller hypnoai-sidecar.spec --clean --noconfirm
+
+    - name: Organize sidecar output (Windows)
+      if: matrix.platform == 'win'
+      run: |
+        # Create platform-specific copy for artifact
+        New-Item -ItemType Directory -Force -Path "dist/hypnoai-sidecar-${{ matrix.platform }}-${{ matrix.arch }}"
+        Copy-Item -Recurse -Force "dist/hypnoai-sidecar/*" "dist/hypnoai-sidecar-${{ matrix.platform }}-${{ matrix.arch }}/"
+        # dist/hypnoai-sidecar already exists from PyInstaller for electron-builder
+      shell: pwsh
+
+    - name: Organize sidecar output (Unix)
+      if: matrix.platform != 'win'
+      run: |
+        # Create platform-specific copy for artifact
+        mkdir -p "dist/hypnoai-sidecar-${{ matrix.platform }}-${{ matrix.arch }}"
+        cp -r dist/hypnoai-sidecar/* "dist/hypnoai-sidecar-${{ matrix.platform }}-${{ matrix.arch }}/"
+        # dist/hypnoai-sidecar already exists from PyInstaller for electron-builder
+
+    - name: Install desktop dependencies
+      working-directory: desktop
+      run: yarn install --immutable
+
+    - name: Type-check desktop
+      working-directory: desktop
+      run: yarn typecheck
+      continue-on-error: true
+
+    - name: Build desktop frontend
+      working-directory: desktop
+      run: yarn build
+
+    - name: Package application (Windows)
+      if: matrix.platform == 'win'
+      working-directory: desktop
+      run: yarn build:dist:win
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Package application (macOS)
+      if: matrix.platform == 'mac'
+      working-directory: desktop
+      run: yarn build:dist:mac
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Package application (Linux)
+      if: matrix.platform == 'linux'
+      working-directory: desktop
+      run: yarn build:dist:linux
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: hypnoai-${{ matrix.platform }}-${{ matrix.arch }}
+        path: |
+          desktop/release/*.exe
+          desktop/release/*.dmg
+          desktop/release/*.zip
+          desktop/release/*.AppImage
+          desktop/release/*.deb
+          desktop/release/*.rpm
+        retention-days: 30
+        if-no-files-found: error
+
+    - name: Upload sidecar artifact (for debugging)
+      uses: actions/upload-artifact@v4
+      with:
+        name: sidecar-${{ matrix.platform }}-${{ matrix.arch }}
+        path: dist/hypnoai-sidecar-${{ matrix.platform }}-${{ matrix.arch }}
+        retention-days: 7
+        if-no-files-found: error
+
+    - name: List release artifacts
+      working-directory: desktop/release
+      shell: bash
+      run: ls -lah
+
+  # Create GitHub release on tags
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Display structure of downloaded files
+      run: ls -R artifacts
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        draft: true
+        generate_release_notes: true
+        files: |
+          artifacts/**/*.exe
+          artifacts/**/*.dmg
+          artifacts/**/*.zip
+          artifacts/**/*.AppImage
+          artifacts/**/*.deb
+          artifacts/**/*.rpm
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

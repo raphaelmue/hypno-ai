@@ -1,53 +1,112 @@
+# AI / editor
+.claude/
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
 
-# Virtual Environment
-.venv
+# Virtual environments
 venv/
+env/
 ENV/
+.venv/
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# Generated files
-app/static/output/
-app/static/voices/temp_*
-
-# OS specific
-.DS_Store
-Thumbs.db
-
-# Docker
-.docker/
-docker-compose.override.yml
-*.env
-
-routines.json
-
-logs/
-
-# Test
+# Python testing & coverage
+.pytest_cache/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
+.tox/
+
+# Python distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+*.whl
+
+# PyInstaller
+*.spec.bak
+build/
+dist/hypnoai-sidecar/
+dist/hypnoai-sidecar-*/
+
+# Rust / Cargo
+desktop/src-tauri/target/
+
+# Node / Yarn
+node_modules/
+desktop/node_modules/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Frontend build output
+desktop/dist/
+desktop/dist-electron/
+
+# Electron builder output
+desktop/release/
+
+# Vitest / frontend coverage
+desktop/coverage/
+*.lcov
+
+# Tauri build artefacts
+desktop/src-tauri/target/
+*.app
+*.dmg
+*.deb
+*.rpm
+*.AppImage
+*.msi
+*.exe
+*.zip
+
+# electron-builder resources (keep the directory structure but ignore icon files if not committed)
+desktop/build/*.icns
+desktop/build/*.ico
+desktop/build/*.png
+!desktop/build/README.md
+!desktop/build/entitlements.mac.plist
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temp / sidecar session directories
+/tmp/hypnoai-*/
+
+# Project-specific generated audio
+engine/cache/*.wav
+engine/cache/*.mp3
+!engine/cache/.gitkeep
+engine/voices/*.onnx
+engine/voices/*.json
+!engine/voices/.gitkeep
+*.wav
+*.mp3
+!engine/cache/.gitkeep
+
+# Local config overrides
+hypnoai.toml
+.env
+.env.*
+!.env.example
+
+.output/

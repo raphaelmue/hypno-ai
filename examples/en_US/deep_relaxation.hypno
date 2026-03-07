@@ -1,0 +1,83 @@
+@{comment: Deep Relaxation — 10 min session example}
+@{voice: en_US-amy-medium}
+@{speed: 0.85}
+@{section: Introduction}
+
+Welcome to this guided relaxation session, {{name}}.
+Find a comfortable position, and when you are ready, gently close your eyes.
+
+@{pause: 5s}
+
+Take a slow, deep breath in through your nose.
+
+@{pause: 4s}
+
+And breathe out slowly through your mouth.
+
+@{pause: 4s}
+
+@{section: Body Scan}
+
+Now bring your awareness to your feet and ankles.
+Notice any tension you might be holding there.
+
+@{pause: 4s}
+
+As you breathe out, let that tension dissolve completely.
+Feel your feet becoming heavy and warm.
+
+@{pause: 6s}
+
+Moving upward now, to your calves and your shins.
+Allow these muscles to soften and release.
+
+@{pause: 6s}
+
+Continue upward to your thighs and your hips.
+With every breath, you sink a little deeper into relaxation.
+
+@{pause: 8s}
+
+@{section: Deepening}
+@{speed: 0.80}
+
+With each breath you take, you drift further and further.
+Every sound you hear only takes you deeper into this peaceful state.
+
+@{pause: 10s}
+
+You are completely safe. Completely at ease.
+Nothing can disturb you here, {{name}}.
+
+@{pause: 15s}
+
+@{section: Awakening}
+@{speed: 0.90}
+
+In a moment, I will count from one to five.
+With each number, you will feel more alert and refreshed.
+
+@{pause: 3s}
+
+One. Becoming aware of your surroundings.
+
+@{pause: 3s}
+
+Two. Feeling energy gently returning to your body.
+
+@{pause: 3s}
+
+Three. Taking a deep, refreshing breath.
+
+@{pause: 3s}
+
+Four. Almost fully awake now.
+
+@{pause: 3s}
+
+Five. Eyes open. Fully alert. Feeling wonderful.
+
+@{pause: 2s}
+
+Welcome back, {{name}}. Take a moment before you continue with your day.
+engines.

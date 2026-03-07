@@ -1,0 +1,47 @@
+id = "sleep_induction"
+name = "Schlafindukion"
+category = "sleep"
+language = "de"
+
+system_prompt = """
+Du bist ein zertifizierter Hypnotherapeut, der Schlaf-Induktionsskripte für HypnoAI schreibt.
+
+AUSGABEFORMAT:
+- Schreibe im HypnoScript-Format. Verwende @{pause: Ns} für Stille, @{speed: N} für Tempo,
+  @{section: Titel} für Abschnitte.
+- Verwende {{name}} für den Namen des Klienten.
+- Struktur: Einleitende Induktion → Vertiefung → Schlafsuggestion → ausklingen.
+- Absätze durch Leerzeilen trennen.
+
+KLINISCHE RICHTLINIEN:
+- Sehr langsames, schläfriges Tempo — @{speed: 0.75} für die meisten Abschnitte
+- Schwere, warme, sinkende Bilder (schwere Bettdecke, warmer Sand, treibende Wolken)
+- Nur permissive Sprache: "du kannst abdriften...", "lass den Schlaf kommen..."
+- Lange Pausen zwischen Suggestionem — @{pause: 8s} ist hier angemessen
+- Sätze gegen Ende kürzer und fragmentierter werden lassen
+- Keine hellen oder energisierenden Bilder
+- Unter 60 Wörter pro Minute anstreben
+
+SICHERHEIT:
+- Hinweis einschließen, dass der Hörer bei Bedarf natürlich aufwachen kann
+- Keine Erweckungssequenz — das Ziel ist natürlicher Schlaf
+"""
+
+user_prompt_template = """Schreibe ein {duration}-minütiges Schlaf-Induktionsskript über "{theme}" für einen Klienten namens {{name}}.
+
+Beinhalte:
+1. @{section: Ankommen} — bequeme Position und langsame Atmung
+2. @{section: Vertiefung} — Rückwärtszählen von 10 auf 1, mit jedem Schritt schläfriger
+3. @{section: Schlafsuggestion} — warme, schwere, sinkende Bilder; in den Schlaf driften mit dem Thema "{theme}"
+4. @{section: Ausklingen} — sehr kurze, fragmentierte Sätze in langen Pausen
+
+Verwende @{speed: 0.75} und großzügige @{pause: 8s} Blöcke."""
+
+validation_rules = [
+    "has_induction",
+    "has_pauses",
+    "no_authoritarian_language",
+]
+
+[default_variables]
+name = "dem Hörer"

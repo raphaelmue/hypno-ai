@@ -1,39 +1,47 @@
-[build-system]
-requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
-name = "hypno-ai"
+name = "hypnoai"
 version = "0.1.0"
-description = "A text-to-speech desktop application"
-readme = "README.md"
-requires-python = ">=3.10"
-license = {text = "MIT"}
+description = "AI-Powered Local TTS Engine for Hypnosis & Meditation Scripts"
+requires-python = ">=3.11"
+license = { text = "MIT" }
 dependencies = [
-    "pydub==0.25.1",
-    "coqui-tts==0.26.2",
-    "torch==2.7.1",
-    "PyQt6==6.7.1",
-    "PyQt6-Qt6==6.7.1",
-    "PyQt6-sip==13.10.2",
-    "pyinstaller==6.14.2",
-    "alembic==1.16.4",
+    "typer[all]>=0.12",
+    "numpy>=1.26",
+    "soundfile>=0.12",
+    "rich>=13.0",
+    "scipy>=1.11",
+    "pyloudnorm>=0.1",
 ]
 
 [project.optional-dependencies]
+piper = ["piper-tts>=1.4.1", "pathvalidate>=3.3.1"]
+coqui = ["coqui-tts>=0.27.5"]
+kokoro = ["kokoro>=0.9.4"]
+styletts = ["styletts2>=0.1.6"]
+f5tts = ["f5-tts>=1.1.16"]
+bark = ["bark>=0.1.5"]
+pitch = ["librosa>=0.11.0"]
 dev = [
-    "pytest",
-    "black",
-    "flake8",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "pyinstaller>=6.0.0",
 ]
 
-[tool.setuptools]
-packages = ["app"]
+[project.scripts]
+hypnoai = "hypnoai.cli:app"
+hypnoai-sidecar = "hypnoai.sidecar:main"
 
-[tool.black]
-line-length = 88
-target-version = ["py310"]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.flake8]
-max-line-length = 88
-extend-ignore = "E203"
+[tool.hatch.build.targets.wheel]
+packages = ["engine/hypnoai"]
+
+[tool.pytest.ini_options]
+testpaths = ["engine/tests"]
+pythonpath = ["engine"]
+
+[tool.coverage.run]
+source = ["engine/hypnoai"]
+omit = ["engine/tests/*"]

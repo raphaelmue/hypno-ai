@@ -1,0 +1,57 @@
+{
+  "name": "hypnoai-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-powered local TTS engine for hypnosis and meditation scripts",
+  "homepage": "https://github.com/raphaelmue/hypno-ai",
+  "author": {
+    "name": "HypnoAI",
+    "email": "info@hypnoai.app"
+  },
+  "type": "module",
+  "main": "dist-electron/main.js",
+  "packageManager": "yarn@4.12.0",
+  "scripts": {
+    "vite:dev": "vite",
+    "preload:compile": "tsc -p tsconfig.preload.json && node -e \"require('fs').renameSync('dist-electron/preload.js','dist-electron/preload.cjs')\"",
+    "electron:compile": "tsc -p tsconfig.electron.json && yarn preload:compile",
+    "electron:dev": "wait-on http://localhost:1420 && electron .",
+    "dev": "concurrently -n vite,electron -c blue,green --kill-others \"yarn vite:dev\" \"yarn electron:compile && yarn electron:dev\"",
+    "build": "tsc -p tsconfig.electron.json && yarn preload:compile && vite build",
+    "build:dist": "yarn build && electron-builder",
+    "build:dist:win": "yarn build && electron-builder --win",
+    "build:dist:mac": "yarn build && electron-builder --mac",
+    "build:dist:linux": "yarn build && electron-builder --linux",
+    "build:dist:all": "yarn build && electron-builder -mwl",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit && tsc -p tsconfig.preload.json --noEmit"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "@vitest/coverage-v8": "^4.0.18",
+    "autoprefixer": "^10.4.19",
+    "concurrently": "^9.0.0",
+    "electron": "^31.0.0",
+    "electron-builder": "^25.0.0",
+    "jsdom": "^25.0.1",
+    "postcss": "^8.4.41",
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5.5.3",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18",
+    "wait-on": "^8.0.0"
+  }
+}

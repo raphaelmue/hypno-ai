@@ -1,0 +1,83 @@
+@{comment: Tiefenentspannung – Beispiel einer 10-minütigen Sitzung}
+@{voice: de_DE-thorsten-medium}
+@{speed: 0.85}
+@{section: Einführung}
+
+Willkommen zu dieser geführten Entspannungsübung, {{name}}.
+Finden Sie eine bequeme Position und schließen Sie sanft die Augen, wenn Sie bereit sind.
+
+@{pause: 5s}
+
+Atmen Sie langsam und tief durch die Nase ein.
+
+@{pause: 4s}
+
+Atmen Sie langsam durch den Mund aus.
+
+@{pause: 4s}
+
+@{section: Körperwahrnehmung}
+
+Richten Sie nun Ihre Aufmerksamkeit auf Ihre Füße und Knöchel.
+Nehmen Sie wahr, ob Sie dort Verspannungen haben.
+
+@{pause: 4s}
+
+Lassen Sie diese Verspannungen beim Ausatmen vollständig los. Spüren Sie, wie Ihre Füße schwer und warm werden.
+
+@{pause: 6s}
+
+Gehen Sie nun nach oben zu Ihren Waden und Schienbeinen.
+
+Lass diese Muskeln locker und entspannt werden.
+
+@{pause: 6s}
+
+Fahre fort, deine Muskeln nach oben zu deinen Oberschenkeln und Hüften zu massieren.
+
+Mit jedem Atemzug sinkst du ein Stück tiefer in die Entspannung.
+
+@{pause: 8s}
+
+@{section: Vertiefung}
+@{speed: 0.80}
+
+Mit jedem Atemzug gleitest du weiter und tiefer.
+Jedes Geräusch, das du hörst, führt dich nur noch tiefer in diesen friedvollen Zustand.
+
+@{pause: 10s}
+
+Du bist vollkommen sicher. Völlig entspannt.
+Nichts kann dich hier stören, {{name}}.
+
+@{pause: 15s}
+
+@{section: Erwachen}
+@{speed: 0.90}
+
+Gleich zähle ich von eins bis fünf.
+Mit jeder Zahl fühlst du dich wacher und erfrischter.
+
+@{pause: 3s}
+
+Eins. Nimm deine Umgebung bewusst wahr.
+
+@{pause: 3s}
+
+Zwei. Spüre, wie die Energie sanft in deinen Körper zurückkehrt.
+
+@{pause: 3s}
+
+Drei. Ein tiefer, erfrischender Atemzug.
+
+@{pause: 3s}
+
+Vier. Fast vollständig wach.
+
+@{pause: 3s}
+
+Fünf. Augen geöffnet. Hellwach. Wunderbar.
+
+@{pause: 2s}
+
+Willkommen zurück, {{name}}. Nimm dir einen Moment Zeit, bevor du deinen Tag fortsetzt.
