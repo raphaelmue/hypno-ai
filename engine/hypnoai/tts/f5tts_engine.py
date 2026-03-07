@@ -38,14 +38,21 @@ class F5TTSEngine:
     def __init__(self, voices_dir: Path, use_gpu: bool = True) -> None:
         global _HAS_F5TTS, _F5TTS  # noqa: PLW0603
         if not _HAS_F5TTS:
+            import importlib
+            import sys
+            importlib.invalidate_caches()
+            for key in [k for k in sys.modules if k == "f5_tts" or k.startswith("f5_tts.")]:
+                del sys.modules[key]
+            from ..resources.engine_manager import _ensure_managed_path
+            _ensure_managed_path()
             try:
                 from f5_tts.api import F5TTS as _F5TTS  # type: ignore[import-untyped]
                 _HAS_F5TTS = True
-            except ImportError:
+            except ImportError as exc:
                 raise ImportError(
-                    "F5-TTS is not installed. "
-                    "Install it with: pip install f5-tts"
-                )
+                    f"F5-TTS is not installed. "
+                    f"Install it with: pip install f5-tts ({exc})"
+                ) from exc
         self.voices_dir = voices_dir
         self.use_gpu = use_gpu
         self._model: "_F5TTS | None" = None

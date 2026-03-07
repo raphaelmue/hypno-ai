@@ -47,14 +47,21 @@ class StyleTTSEngine:
     def __init__(self, voices_dir: Path, use_gpu: bool = True) -> None:
         global _HAS_STYLETTS2, _stts2  # noqa: PLW0603
         if not _HAS_STYLETTS2:
+            import importlib
+            import sys
+            importlib.invalidate_caches()
+            for key in [k for k in sys.modules if k == "styletts2" or k.startswith("styletts2.")]:
+                del sys.modules[key]
+            from ..resources.engine_manager import _ensure_managed_path
+            _ensure_managed_path()
             try:
                 from styletts2 import tts as _stts2  # type: ignore[import-untyped]
                 _HAS_STYLETTS2 = True
-            except ImportError:
+            except ImportError as exc:
                 raise ImportError(
-                    "StyleTTS2 is not installed. "
-                    "Install it with: pip install styletts2"
-                )
+                    f"StyleTTS2 is not installed. "
+                    f"Install it with: pip install styletts2 ({exc})"
+                ) from exc
         self.voices_dir = voices_dir
         self.use_gpu = use_gpu
         self._model: "_stts2.StyleTTS2 | None" = None

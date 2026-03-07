@@ -77,14 +77,23 @@ class KokoroEngine:
         if not _HAS_KOKORO:
             # Re-attempt import — the package may have been installed at
             # runtime after the module was first loaded.
+            import importlib
+            import sys
+            importlib.invalidate_caches()
+            # Remove any cached failed import entries
+            for key in [k for k in sys.modules if k == "kokoro" or k.startswith("kokoro.")]:
+                del sys.modules[key]
+            # Re-register managed site-packages & DLL dirs
+            from ..resources.engine_manager import _ensure_managed_path
+            _ensure_managed_path()
             try:
                 from kokoro import KPipeline  # type: ignore[import-untyped]
                 _HAS_KOKORO = True
-            except ImportError:
+            except ImportError as exc:
                 raise ImportError(
-                    "Kokoro is not installed. "
-                    "Install it with: pip install kokoro"
-                )
+                    f"Kokoro is not installed. "
+                    f"Install it with: pip install kokoro ({exc})"
+                ) from exc
         self.voices_dir = voices_dir
         self.use_gpu = use_gpu
         self._pipelines: dict[str, "KPipeline"] = {}

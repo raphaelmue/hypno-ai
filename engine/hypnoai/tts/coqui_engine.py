@@ -43,14 +43,21 @@ class CoquiEngine:
     ) -> None:
         global _HAS_COQUI, _CoquiTTS  # noqa: PLW0603
         if not _HAS_COQUI:
+            import importlib
+            import sys
+            importlib.invalidate_caches()
+            for key in [k for k in sys.modules if k == "TTS" or k.startswith("TTS.")]:
+                del sys.modules[key]
+            from ..resources.engine_manager import _ensure_managed_path
+            _ensure_managed_path()
             try:
                 from TTS.api import TTS as _CoquiTTS  # type: ignore[import-untyped]
                 _HAS_COQUI = True
-            except ImportError:
+            except ImportError as exc:
                 raise ImportError(
-                    "Coqui TTS is not installed. "
-                    "Install it with: pip install TTS"
-                )
+                    f"Coqui TTS is not installed. "
+                    f"Install it with: pip install TTS ({exc})"
+                ) from exc
         self.voices_dir = voices_dir
         self.model_name = model_name
         self.language = language
