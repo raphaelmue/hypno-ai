@@ -35,8 +35,16 @@ def patched_engine(tmp_path, monkeypatch):
 class TestKokoroEngineInit:
     def test_raises_import_error_when_not_installed(self, tmp_path, monkeypatch):
         monkeypatch.setattr(_ke, "_HAS_KOKORO", False)
-        with pytest.raises(ImportError, match="pip install kokoro"):
-            KokoroEngine(voices_dir=tmp_path)
+        _real_import = __builtins__.__import__ if hasattr(__builtins__, '__import__') else __import__
+
+        def _blocked_import(name, *args, **kwargs):
+            if name == "kokoro":
+                raise ImportError("mocked")
+            return _real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=_blocked_import):
+            with pytest.raises(ImportError, match="pip install kokoro"):
+                KokoroEngine(voices_dir=tmp_path)
 
 
 class TestKokoroEngineProtocol:

@@ -41,11 +41,16 @@ class CoquiEngine:
         language: str = _DEFAULT_LANGUAGE,
         use_gpu: bool = True,
     ) -> None:
+        global _HAS_COQUI, _CoquiTTS  # noqa: PLW0603
         if not _HAS_COQUI:
-            raise ImportError(
-                "Coqui TTS is not installed. "
-                "Install it with: pip install TTS"
-            )
+            try:
+                from TTS.api import TTS as _CoquiTTS  # type: ignore[import-untyped]
+                _HAS_COQUI = True
+            except ImportError:
+                raise ImportError(
+                    "Coqui TTS is not installed. "
+                    "Install it with: pip install TTS"
+                )
         self.voices_dir = voices_dir
         self.model_name = model_name
         self.language = language

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock, call, patch
 
 import hypnoai.tts.bark_engine as _be
 import numpy as np
@@ -36,8 +36,16 @@ def patched_engine(tmp_path, monkeypatch):
 class TestBarkEngineInit:
     def test_raises_import_error_when_not_installed(self, tmp_path, monkeypatch):
         monkeypatch.setattr(_be, "_HAS_BARK", False)
-        with pytest.raises(ImportError, match="pip install suno-bark"):
-            BarkEngine(voices_dir=tmp_path)
+        _real_import = __import__
+
+        def _blocked(name, *a, **kw):
+            if name == "bark":
+                raise ImportError("mocked")
+            return _real_import(name, *a, **kw)
+
+        with patch("builtins.__import__", side_effect=_blocked):
+            with pytest.raises(ImportError, match="pip install suno-bark"):
+                BarkEngine(voices_dir=tmp_path)
 
 
 class TestBarkEngineProtocol:

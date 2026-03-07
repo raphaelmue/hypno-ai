@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import hypnoai.tts.coqui_engine as _ce
 import numpy as np
@@ -31,8 +31,16 @@ def patched_engine(tmp_path, monkeypatch):
 class TestCoquiEngineInit:
     def test_raises_import_error_when_tts_not_installed(self, tmp_path, monkeypatch):
         monkeypatch.setattr(_ce, "_HAS_COQUI", False)
-        with pytest.raises(ImportError, match="pip install TTS"):
-            CoquiEngine(voices_dir=tmp_path)
+        _real_import = __import__
+
+        def _blocked(name, *a, **kw):
+            if name == "TTS.api":
+                raise ImportError("mocked")
+            return _real_import(name, *a, **kw)
+
+        with patch("builtins.__import__", side_effect=_blocked):
+            with pytest.raises(ImportError, match="pip install TTS"):
+                CoquiEngine(voices_dir=tmp_path)
 
 
 class TestCoquiEngineProtocol:

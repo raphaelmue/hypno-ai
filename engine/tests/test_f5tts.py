@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import hypnoai.tts.f5tts_engine as _fe
 import numpy as np
@@ -39,8 +39,16 @@ def patched_engine(tmp_path, monkeypatch):
 class TestF5TTSEngineInit:
     def test_raises_import_error_when_not_installed(self, tmp_path, monkeypatch):
         monkeypatch.setattr(_fe, "_HAS_F5TTS", False)
-        with pytest.raises(ImportError, match="pip install f5-tts"):
-            F5TTSEngine(voices_dir=tmp_path)
+        _real_import = __import__
+
+        def _blocked(name, *a, **kw):
+            if name == "f5_tts.api":
+                raise ImportError("mocked")
+            return _real_import(name, *a, **kw)
+
+        with patch("builtins.__import__", side_effect=_blocked):
+            with pytest.raises(ImportError, match="pip install f5-tts"):
+                F5TTSEngine(voices_dir=tmp_path)
 
 
 class TestF5TTSEngineProtocol:

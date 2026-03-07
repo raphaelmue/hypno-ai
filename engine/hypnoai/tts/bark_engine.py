@@ -50,11 +50,17 @@ class BarkEngine:
     """
 
     def __init__(self, voices_dir: Path, use_gpu: bool = True) -> None:
+        global _HAS_BARK, generate_audio, preload_models, _BARK_SAMPLE_RATE  # noqa: PLW0603
         if not _HAS_BARK:
-            raise ImportError(
-                "Bark is not installed. "
-                "Install it with: pip install suno-bark"
-            )
+            try:
+                from bark import generate_audio, preload_models  # type: ignore[import-untyped]
+                from bark import SAMPLE_RATE as _BARK_SAMPLE_RATE  # type: ignore[import-untyped]
+                _HAS_BARK = True
+            except ImportError:
+                raise ImportError(
+                    "Bark is not installed. "
+                    "Install it with: pip install suno-bark"
+                )
         self.voices_dir = voices_dir
         self.use_gpu = use_gpu
         self._loaded = False

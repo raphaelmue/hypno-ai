@@ -73,11 +73,18 @@ class KokoroEngine:
     """
 
     def __init__(self, voices_dir: Path, use_gpu: bool = True) -> None:
+        global _HAS_KOKORO, KPipeline  # noqa: PLW0603
         if not _HAS_KOKORO:
-            raise ImportError(
-                "Kokoro is not installed. "
-                "Install it with: pip install kokoro"
-            )
+            # Re-attempt import — the package may have been installed at
+            # runtime after the module was first loaded.
+            try:
+                from kokoro import KPipeline  # type: ignore[import-untyped]
+                _HAS_KOKORO = True
+            except ImportError:
+                raise ImportError(
+                    "Kokoro is not installed. "
+                    "Install it with: pip install kokoro"
+                )
         self.voices_dir = voices_dir
         self.use_gpu = use_gpu
         self._pipelines: dict[str, "KPipeline"] = {}

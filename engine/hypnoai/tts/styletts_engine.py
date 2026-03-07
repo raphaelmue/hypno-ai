@@ -45,11 +45,16 @@ class StyleTTSEngine:
     """
 
     def __init__(self, voices_dir: Path, use_gpu: bool = True) -> None:
+        global _HAS_STYLETTS2, _stts2  # noqa: PLW0603
         if not _HAS_STYLETTS2:
-            raise ImportError(
-                "StyleTTS2 is not installed. "
-                "Install it with: pip install styletts2"
-            )
+            try:
+                from styletts2 import tts as _stts2  # type: ignore[import-untyped]
+                _HAS_STYLETTS2 = True
+            except ImportError:
+                raise ImportError(
+                    "StyleTTS2 is not installed. "
+                    "Install it with: pip install styletts2"
+                )
         self.voices_dir = voices_dir
         self.use_gpu = use_gpu
         self._model: "_stts2.StyleTTS2 | None" = None

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import hypnoai.tts.styletts_engine as _se
 import numpy as np
@@ -41,8 +41,16 @@ def patched_engine(tmp_path, monkeypatch):
 class TestStyleTTSEngineInit:
     def test_raises_import_error_when_not_installed(self, tmp_path, monkeypatch):
         monkeypatch.setattr(_se, "_HAS_STYLETTS2", False)
-        with pytest.raises(ImportError, match="pip install styletts2"):
-            StyleTTSEngine(voices_dir=tmp_path)
+        _real_import = __import__
+
+        def _blocked(name, *a, **kw):
+            if name == "styletts2":
+                raise ImportError("mocked")
+            return _real_import(name, *a, **kw)
+
+        with patch("builtins.__import__", side_effect=_blocked):
+            with pytest.raises(ImportError, match="pip install styletts2"):
+                StyleTTSEngine(voices_dir=tmp_path)
 
 
 class TestStyleTTSEngineProtocol:
