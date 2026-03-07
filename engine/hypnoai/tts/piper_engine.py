@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from .base import VoiceInfo
@@ -78,8 +80,7 @@ class PiperEngine:
         # Our API uses speed where higher = faster, so length_scale = 1/speed.
         length_scale = 1.0 / max(speed, 0.01)
 
-        cmd = [
-            self.piper_bin,
+        piper_args = [
             "--model", str(model_path),
             "--output_file", str(output_path),
             "--length_scale", f"{length_scale:.4f}",
@@ -101,6 +102,8 @@ class PiperEngine:
         ):
             env["LC_ALL"] = "C.UTF-8"
 
+        cmd = self._resolve_piper_cmd(piper_args, env)
+
         try:
             result = subprocess.run(
                 cmd, input=text.encode("utf-8"), capture_output=True, env=env
@@ -116,6 +119,38 @@ class PiperEngine:
                 f"Piper failed (exit {result.returncode}): "
                 f"{result.stderr.decode('utf-8', errors='replace')}"
             )
+
+    def _resolve_piper_cmd(
+        self, piper_args: list[str], env: dict[str, str]
+    ) -> list[str]:
+        """Build the piper command, handling frozen-mode fallback.
+
+        In frozen (PyInstaller) mode, ``pip install --target`` does not
+        create entry-point scripts, so the ``piper`` binary won't exist.
+        Fall back to invoking the system Python with ``-m piper`` and set
+        ``PYTHONPATH`` to include the managed site-packages.
+        """
+        # Direct binary found on PATH or explicit path exists — use it.
+        if shutil.which(self.piper_bin) or Path(self.piper_bin).is_file():
+            return [self.piper_bin, *piper_args]
+
+        # Frozen mode: invoke via system Python + managed site-packages.
+        if getattr(sys, "frozen", False):
+            from ..resources.engine_manager import _get_python, _get_managed_site_packages
+            try:
+                python = _get_python()
+            except EnvironmentError:
+                pass
+            else:
+                managed = str(_get_managed_site_packages())
+                existing = env.get("PYTHONPATH", "")
+                env["PYTHONPATH"] = (
+                    managed + os.pathsep + existing if existing else managed
+                )
+                return [python, "-m", "piper", *piper_args]
+
+        # Non-frozen fallback: try current interpreter.
+        return [self.piper_bin, *piper_args]
 
     def list_voices(self) -> list[VoiceInfo]:
         """Discover voices by scanning *voices_dir* for .onnx + .onnx.json pairs."""

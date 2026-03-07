@@ -85,6 +85,8 @@ a = Analysis(
         'librosa',
         'librosa.core',
         'librosa.effects',
+        # Stdlib modules needed by runtime-installed engines (e.g. torch)
+        'pickletools',
         # Rich/Typer (for CLI functionality if used by sidecar)
         'rich',
         'typer',
